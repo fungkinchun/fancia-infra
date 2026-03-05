@@ -250,3 +250,7 @@ output "dev_iam_secret_access_key" {
   value     = module.dev_iam.account_secret_access_key
   sensitive = true
 }
+
+output "rds_secret_name" {
+  value = module.dev_rds.rds_secret_name
+}

@@ -76,10 +76,18 @@ resource "aws_route53_record" "rds_cname" {
   records = [module.rds.db_instance_address]
 }
 
+data "aws_secretsmanager_secret" "rds_master_user_secret" {
+  arn = module.rds.db_instance_master_user_secret_arn
+}
+
 output "rds" {
   value = module.rds
 }
 
 output "rds_secret_arn" {
   value = module.rds.db_instance_master_user_secret_arn
+}
+
+output "rds_secret_name" {
+  value = data.aws_secretsmanager_secret.rds_master_user_secret.name
 }
