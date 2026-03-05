@@ -26,7 +26,7 @@ output "dev_iam_secret_access_key" {
   sensitive = true
 }
 
-output "dev_rds_secret_name" {
-  value     = module.dev.rds_secret_name
+output "dev_rds_secret_name_map" {
+  value     = module.dev.rds_secret_name_map
   sensitive = true
 }
