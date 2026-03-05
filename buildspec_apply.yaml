@@ -1,0 +1,22 @@
+version: 0.2
+phases:
+  install:
+    commands:
+      - echo "Installing Terraform ${TF_VERSION} on Ubuntu..."
+      - apt-get update && apt-get install -y unzip curl
+      - curl -s -qL -o terraform.zip https://releases.hashicorp.com/terraform/${TF_VERSION}/terraform_${TF_VERSION}_linux_amd64.zip
+      - unzip -o terraform.zip
+      - mv terraform /usr/local/bin/
+      - terraform --version
+  build:
+    commands:
+      - terraform init -input=false
+      - cp $CODEBUILD_SRC_DIR_tf_plan_output/tfplan .
+      - terraform apply -auto-approve -input=false tfplan
+  post_build:
+    commands:
+      - echo "Exporting Terraform outputs to JSON..."
+      - terraform output -json > tf_outputs.json
+artifacts:
+  files:
+    - tf_outputs.json
