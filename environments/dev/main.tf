@@ -252,5 +252,5 @@ output "dev_iam_secret_access_key" {
 }
 
 output "rds_secret_name_map" {
-  value = { for k, v in module.dev_rds.rds_secret_name : k => v.rds_secret_name }
+  value = { for k, v in module.dev_rds : k => v.rds_secret_name }
 }
