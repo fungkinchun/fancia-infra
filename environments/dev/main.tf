@@ -255,6 +255,6 @@ output "rds_secret_name_map" {
   value = { for k, v in module.dev_rds : k => v.rds_secret_name }
 }
 
-output "dev_vpc_id" {
+output "default_vpc_id" {
   value = module.dev_network.vpc.default_vpc_id
 }
