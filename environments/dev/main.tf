@@ -241,6 +241,39 @@ resource "aws_secretsmanager_secret_version" "smtp_credentials_version" {
   secret_string = jsonencode(var.smtp_credentials)
 }
 
+
+resource "aws_acmpca_certificate_authority" "ca" {
+  type = "ROOT"
+  certificate_authority_configuration {
+    key_algorithm     = "RSA_4096"
+    signing_algorithm = "SHA512WITHRSA"
+    subject {
+      common_name = "fancia.com"
+      organization = "Fancia"
+    }
+  }
+  permanent_deletion_time_in_days = 7
+}
+
+resource "aws_acmpca_certificate" "root" {
+  certificate_authority_arn   = aws_acmpca_certificate_authority.ca.arn
+  certificate_signing_request = aws_acmpca_certificate_authority.ca.certificate_signing_request
+  signing_algorithm           = "SHA512WITHRSA"
+
+  template_arn = "arn:aws:acm-pca:::template/RootCACertificate/V1"
+
+  validity {
+    type  = "YEARS"
+    value = 10
+  }
+}
+
+resource "aws_acmpca_certificate_authority_certificate" "activation" {
+  certificate_authority_arn = aws_acmpca_certificate_authority.ca.arn
+  certificate               = aws_acmpca_certificate.root.certificate
+}
+
+
 output "dev_iam_access_key_id" {
   value     = module.dev_iam.account_access_key_id
   sensitive = true
@@ -257,4 +290,8 @@ output "rds_secret_name_map" {
 
 output "vpc_id" {
   value = module.dev_network.vpc_id
+}
+
+output "private_ca_arn" {
+  value = aws_acmpca_certificate_authority.ca.arn
 }

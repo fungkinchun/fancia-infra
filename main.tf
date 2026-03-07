@@ -40,3 +40,7 @@ output "dev_aws_account_id" {
 output "dev_vpc_id" {
   value = module.dev.vpc_id
 }
+
+output "dev_private_ca_arn" {
+  value = module.dev.private_ca_arn
+}
