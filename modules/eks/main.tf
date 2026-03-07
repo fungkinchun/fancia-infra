@@ -1,3 +1,5 @@
+data "aws_caller_identity" "current" {}
+
 data "aws_iam_role" "codebuild_role" {
   name = "${var.project_name}-infra-codebuild-role"
 }
@@ -43,7 +45,7 @@ module "eks" {
   vpc_id                                   = var.vpc_id
   subnet_ids                               = var.subnet_ids
   endpoint_public_access                   = true
-  enable_cluster_creator_admin_permissions = true
+  enable_cluster_creator_admin_permissions = data.aws_caller_identity.current.arn != var.principal_arn
   authentication_mode                      = "API_AND_CONFIG_MAP"
   iam_role_name                            = "${var.project_name}-${var.environment}-eks-cluster-role"
 
