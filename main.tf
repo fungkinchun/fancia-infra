@@ -37,6 +37,6 @@ output "dev_aws_account_id" {
   value = data.aws_caller_identity.dev_current.account_id
 }
 
-output "dev_default_vpc_id" {
-  value = module.dev.default_vpc_id
+output "dev_vpc_id" {
+  value = module.dev.vpc_id
 }
