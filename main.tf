@@ -16,6 +16,8 @@ module "dev" {
   smtp_credentials = var.smtp_credentials
 }
 
+data "aws_caller_identity" "dev_current" {}
+
 output "dev_iam_access_key_id" {
   value     = module.dev.dev_iam_access_key_id
   sensitive = true
@@ -29,4 +31,12 @@ output "dev_iam_secret_access_key" {
 output "dev_rds_secret_name_map" {
   value     = module.dev.rds_secret_name_map
   sensitive = true
+}
+
+output "dev_aws_account_id" {
+  value = data.aws_caller_identity.dev_current.account_id
+}
+
+output "dev_default_vpc_id" {
+  value = module.dev.default_vpc_id
 }

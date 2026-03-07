@@ -46,3 +46,7 @@ module "vpc" {
 output "vpc" {
   value = module.vpc
 }
+
+output "default_vpc_id" {
+  value = module.vpc.default_vpc_id
+}
