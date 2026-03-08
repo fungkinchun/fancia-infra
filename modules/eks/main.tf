@@ -231,6 +231,7 @@ resource "aws_iam_policy" "alb_controller_policy" {
         "Action" : [
           "iam:CreateServiceLinkedRole",
           "ec2:DescribeAccountAttributes",
+          "ec2:DescribeAvailabilityZones",
           "ec2:DescribeAddresses",
           "ec2:DescribeInternetGateways",
           "ec2:DescribeVpcs",
