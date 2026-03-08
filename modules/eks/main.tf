@@ -234,7 +234,23 @@ resource "aws_iam_policy" "alb_controller_policy" {
           "elasticloadbalancing:*"
         ],
         "Resource" : "*"
-      }
+      },{
+        "Effect" : "Allow",
+        "Action" : [
+          "elasticloadbalancing:AddTags",
+          "elasticloadbalancing:RemoveTags"
+        ],
+        "Resource" : [
+          "arn:aws:elasticloadbalancing:*:*:targetgroup/*/*",
+          "arn:aws:elasticloadbalancing:*:*:loadbalancer/net/*/*",
+          "arn:aws:elasticloadbalancing:*:*:loadbalancer/app/*/*"
+        ],
+        "Condition" : {
+          "Null" : {
+            "aws:ResourceTag/elbv2.k8s.aws/cluster" : "false"
+          }
+        }
+      },
     ]
   })
 }
