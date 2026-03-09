@@ -273,6 +273,15 @@ resource "aws_acmpca_certificate_authority_certificate" "activation" {
   certificate               = aws_acmpca_certificate.root.certificate
 }
 
+resource "aws_acm_certificate" "cert" {
+  domain_name               = "${var.environment}.${var.project_name}.com"
+  subject_alternative_names = ["*.${var.environment}.${var.project_name}.com"]
+  certificate_authority_arn = aws_acmpca_certificate_authority.ca.arn
+
+  lifecycle {
+    create_before_destroy = true   # Helps with rotation (new cert before destroying old)
+  }
+}
 
 output "dev_iam_access_key_id" {
   value     = module.dev_iam.account_access_key_id
@@ -294,4 +303,8 @@ output "vpc_id" {
 
 output "private_ca_arn" {
   value = aws_acmpca_certificate_authority.ca.arn
+}
+
+output "acm_certificate_arn" {
+  value = aws_acm_certificate.cert.arn
 }

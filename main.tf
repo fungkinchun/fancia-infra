@@ -44,3 +44,7 @@ output "dev_vpc_id" {
 output "dev_private_ca_arn" {
   value = module.dev.private_ca_arn
 }
+
+output "dev_acm_certificate_arn" {
+  value = module.dev.acm_certificate_arn
+}
