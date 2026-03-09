@@ -129,6 +129,7 @@ resource "aws_iam_role" "pod_role" {
             "${local.oidc_issuer_url}:sub" = [
               "system:serviceaccount:${var.namespace}:${var.project_name}-sa",
               "system:serviceaccount:${var.namespace}:external-secrets"
+              "system:serviceaccount:${var.namespace}:aws-privateca-issuer"
             ]
           }
         }
@@ -144,13 +145,18 @@ resource "aws_iam_role" "pod_role" {
   depends_on = [module.eks]
 }
 
-resource "aws_iam_role_policy" "pod_secrets_access" {
-  name = "secrets-access"
+resource "aws_iam_role_policy" "pod_role_policy" {
+  name = "eks-pod-role-policy"
   role = aws_iam_role.pod_role.id
 
   policy = jsonencode({
     "Version" : "2012-10-17",
     "Statement" : [
+      {
+        "Effect" : "Allow",
+        "Action" : "sts:GetCallerIdentity",
+        "Resource" : "*"
+      },
       {
         "Sid" : "AllowGlobalList",
         "Effect" : "Allow",
