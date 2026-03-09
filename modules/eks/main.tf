@@ -168,6 +168,15 @@ resource "aws_iam_role_policy" "pod_secrets_access" {
           "secretsmanager:ListSecretVersionIds"
         ],
         "Resource" : "arn:aws:secretsmanager:${var.region}:*:secret:*"
+      },
+      {
+        "Effect" : "Allow",
+        "Action" : [
+          "acm-pca:GetCertificate",
+          "acm-pca:IssueCertificate",
+          "acm-pca:DescribeCertificateAuthority"
+        ],
+        "Resource" : "*"
       }
     ]
   })
