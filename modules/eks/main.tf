@@ -128,7 +128,7 @@ resource "aws_iam_role" "pod_role" {
             "${local.oidc_issuer_url}:aud" = "sts.amazonaws.com"
             "${local.oidc_issuer_url}:sub" = [
               "system:serviceaccount:${var.namespace}:${var.project_name}-sa",
-              "system:serviceaccount:${var.namespace}:external-secrets"
+              "system:serviceaccount:${var.namespace}:external-secrets",
               "system:serviceaccount:${var.namespace}:aws-privateca-issuer"
             ]
           }
