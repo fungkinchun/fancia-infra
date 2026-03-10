@@ -12,7 +12,7 @@ phases:
     commands:
       - echo "Fetching secrets from Secrets Manager..."
       - SECRET_JSON=$(aws secretsmanager get-secret-value --secret-id ${AWS_SECRET_NAME} --query SecretString --output text | jq . >  terraform.tfvars.json || { echo "Failed to fetch secret"; exit 1; })
-      - terraform init -input=false
+      - terraform init -input=false -backend-config="bucket=${PROJECT_NAME}-infra-terraform-state"
   build:
     commands:
       - echo "Running Terraform Destroy..."

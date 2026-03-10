@@ -5,6 +5,7 @@ provider "aws" {
 module "dev" {
   source           = "./environments/dev"
   project_name     = var.project_name
+  domain_name      = var.domain_name
   region           = var.region
   environment      = "dev"
   repo_names       = var.repo_names

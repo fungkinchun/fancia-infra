@@ -248,8 +248,8 @@ resource "aws_acmpca_certificate_authority" "ca" {
     key_algorithm     = "RSA_4096"
     signing_algorithm = "SHA512WITHRSA"
     subject {
-      common_name = "fancia.com"
-      organization = "Fancia"
+      common_name = "${var.domain_name}"
+      organization = "${var.project_name}"
     }
   }
   permanent_deletion_time_in_days = 7

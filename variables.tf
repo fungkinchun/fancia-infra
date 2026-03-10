@@ -3,6 +3,11 @@ variable "project_name" {
   description = "The name of the project"
 }
 
+variable "domain_name" {
+  type        = string
+  description = "The domain name for the project"
+}
+
 variable "region" {
   type        = string
   description = "The region of the project"

@@ -10,7 +10,7 @@ phases:
       - terraform --version
   build:
     commands:
-      - terraform init -input=false
+      - terraform init -input=false -backend-config="bucket=${PROJECT_NAME}-infra-terraform-state"
       - cp $CODEBUILD_SRC_DIR_tf_plan_output/tfplan .
       - terraform apply -auto-approve -input=false tfplan
   post_build:
