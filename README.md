@@ -13,13 +13,15 @@ It is recommended to use fancia-infra-pipeline to deploy the infrastructure.
 ### Prerequisites
 
 - AWS CLI installed and configured for the target account and profile
+- Terraform installed
 
-### Quick start
+### Quick start (local deployment)
 
-1. Define the profile to be used for deployment:
+1. Define the profile and project name to be used for deployment:
 
    ```bash
    export AWS_PROFILE=<your-aws-profile>
+   export PROJECT_NAME=<your-project-name>
    ```
 
 2. Initialize Terraform state (adjust backend bucket name as needed):
