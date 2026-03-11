@@ -116,9 +116,9 @@ resource "aws_iam_role" "pod_role" {
           StringEquals = {
             "${local.oidc_issuer_url}:aud" = "sts.amazonaws.com"
             "${local.oidc_issuer_url}:sub" = [
-              "system:serviceaccount:${var.namespace}:${var.project_name}-sa",
-              "system:serviceaccount:${var.namespace}:external-secrets",
-              "system:serviceaccount:${var.namespace}:aws-privateca-issuer"
+              "system:serviceaccount:${kubernetes_namespace.namespace.metadata[0].name}:${var.project_name}-sa",
+              "system:serviceaccount:${kubernetes_namespace.namespace.metadata[0].name}:external-secrets",
+              "system:serviceaccount:${kubernetes_namespace.namespace.metadata[0].name}:aws-privateca-issuer"
             ]
           }
         }
@@ -126,7 +126,7 @@ resource "aws_iam_role" "pod_role" {
     ]
   })
 
-  depends_on = [module.eks]
+  depends_on = [kubernetes_namespace.namespace]
 }
 
 resource "aws_iam_role_policy" "pod_role_policy" {
@@ -174,7 +174,7 @@ resource "aws_iam_role_policy" "pod_role_policy" {
 
 resource "kubernetes_namespace" "namespace" {
   metadata {
-    name = var.project_name
+    name = "${var.project_name}-${var.environment}"
   }
   depends_on = [module.eks]
 }
@@ -190,7 +190,7 @@ resource "kubernetes_service_account" "irsa_sa" {
     }
   }
 
-  depends_on = [module.eks]
+  depends_on = [kubernetes_namespace.namespace]
 }
 
 resource "aws_iam_role" "alb_controller" {

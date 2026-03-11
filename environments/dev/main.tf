@@ -198,7 +198,6 @@ module "dev_eks" {
   environment   = var.environment
   vpc_id        = module.dev_vpc.vpc.vpc_id
   subnet_ids    = module.dev_vpc.vpc.private_subnets
-  namespace     = var.project_name
   region        = var.region
   principal_arn = module.dev_iam.account_arn
 }
