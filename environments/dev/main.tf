@@ -133,8 +133,8 @@ resource "aws_codeartifact_domain" "codeartifact_domain" {
   }
 }
 
-module "dev_cicd" {
-  source                  = "../../modules/cicd"
+module "dev_developertools" {
+  source                  = "../../modules/developertools"
   for_each                = toset(var.repo_names)
   project_name            = var.project_name
   environment             = var.environment
@@ -146,8 +146,8 @@ module "dev_cicd" {
   depends_on              = [aws_codeartifact_domain.codeartifact_domain]
 }
 
-module "dev_network" {
-  source       = "../../modules/network"
+module "dev_vpc" {
+  source       = "../../modules/vpc"
   project_name = var.project_name
   vpc_cidr     = "10.0.0.0/16"
   az_count     = 2
@@ -156,7 +156,7 @@ module "dev_network" {
 
 resource "aws_db_subnet_group" "main" {
   name       = "${var.project_name}-subnet-group"
-  subnet_ids = module.dev_network.vpc.public_subnets
+  subnet_ids = module.dev_vpc.vpc.public_subnets
 
   tags = {
     Name = "${var.project_name}-subnet-group"
@@ -166,7 +166,7 @@ resource "aws_db_subnet_group" "main" {
 resource "aws_route53_zone" "internal" {
   name = "${var.project_name}.${var.environment}"
   vpc {
-    vpc_id = module.dev_network.vpc.vpc_id
+    vpc_id = module.dev_vpc.vpc.vpc_id
   }
   tags = {
     Environment = var.environment
@@ -187,9 +187,9 @@ module "dev_rds" {
   username             = var.username
   instance_class       = var.instance_class
   allocated_storage    = var.allocated_storage
-  vpc_id               = module.dev_network.vpc.vpc_id
-  private_subnet_ids   = module.dev_network.vpc.database_subnets
-  allowed_cidr_blocks  = [module.dev_network.vpc.vpc_cidr_block]
+  vpc_id               = module.dev_vpc.vpc.vpc_id
+  private_subnet_ids   = module.dev_vpc.vpc.database_subnets
+  allowed_cidr_blocks  = [module.dev_vpc.vpc.vpc_cidr_block]
   db_subnet_group_name = aws_db_subnet_group.main.name
   depends_on           = [aws_db_subnet_group.main]
 }
@@ -198,8 +198,8 @@ module "dev_eks" {
   source        = "../../modules/eks"
   project_name  = var.project_name
   environment   = var.environment
-  vpc_id        = module.dev_network.vpc.vpc_id
-  subnet_ids    = module.dev_network.vpc.private_subnets
+  vpc_id        = module.dev_vpc.vpc.vpc_id
+  subnet_ids    = module.dev_vpc.vpc.private_subnets
   namespace     = var.project_name
   region        = var.region
   principal_arn = module.dev_iam.account_arn
@@ -279,7 +279,7 @@ resource "aws_acm_certificate" "cert" {
   certificate_authority_arn = aws_acmpca_certificate_authority.ca.arn
 
   lifecycle {
-    create_before_destroy = true   # Helps with rotation (new cert before destroying old)
+    create_before_destroy = true
   }
 }
 
@@ -298,7 +298,7 @@ output "rds_secret_name_map" {
 }
 
 output "vpc_id" {
-  value = module.dev_network.vpc_id
+  value = module.dev_vpc.vpc_id
 }
 
 output "private_ca_arn" {

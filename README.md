@@ -4,18 +4,29 @@ Fancia is a social platform connecting people with shared interests for offline,
 
 ## infra
 
-This repository contains Terraform code to provision the infrastructure of Fancia.
+This repository contains Terraform code to provision the infrastructure of Fancia. It consists of reusable modules that can be composed per environment (for example `dev`).
 
 ### IMPORTANT
 
-It is recommended to use fancia-infra-pipeline to deploy the infrastructure.
+It is recommended to use [fancia-infra-pipeline](https://github.com/fungkanchun/fancia-infra-pipeline) to deploy the infrastructure.
 
-### Prerequisites
+- Developer tools
+- IAM
+- Network
+- S3
+- RDS
+- EKS
+
+Additional resources include Secrets Manager secrets, Private CA, KMS keys, and ALB/ingress configurations.
+
+### Local deployment
+
+#### Prerequisites
 
 - AWS CLI installed and configured for the target account and profile
 - Terraform installed
 
-### Quick start (local deployment)
+#### Quick start
 
 1. Define the profile and project name to be used for deployment:
 
@@ -35,6 +46,12 @@ It is recommended to use fancia-infra-pipeline to deploy the infrastructure.
    ```bash
    terraform plan -var-file="terraform.tfvars"
    terraform apply -var-file="terraform.tfvars"
+   ```
+
+4. Cleanup
+
+   ```bash
+   terraform destroy -var-file="terraform.tfvars"
    ```
 
 ### Notes
