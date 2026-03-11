@@ -1,8 +1,11 @@
-resource "aws_instance" "main" {
-  tags = {
-    Terraform     = "true"
-    Project       = var.project_name
-    Environment   = var.environment
+provider "aws" {
+  region = var.region
+  default_tags {
+    tags = {
+      Terraform   = "true"
+      Project     = var.project_name
+      Environment = var.environment
+    }
   }
 }
 
