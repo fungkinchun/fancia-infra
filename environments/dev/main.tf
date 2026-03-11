@@ -1,3 +1,11 @@
+resource "aws_instance" "main" {
+  tags = {
+    Terraform     = "true"
+    Project       = var.project_name
+    Environment   = var.environment
+  }
+}
+
 module "dev_iam" {
   source       = "../../modules/iam"
   region       = var.region
@@ -127,10 +135,6 @@ resource "aws_codestarconnections_connection" "github" {
 
 resource "aws_codeartifact_domain" "codeartifact_domain" {
   domain = "${var.project_name}-${var.environment}"
-  tags = {
-    Environment = var.environment
-    Project     = var.project_name
-  }
 }
 
 module "dev_developertools" {
@@ -157,21 +161,12 @@ module "dev_vpc" {
 resource "aws_db_subnet_group" "main" {
   name       = "${var.project_name}-subnet-group"
   subnet_ids = module.dev_vpc.vpc.public_subnets
-
-  tags = {
-    Name = "${var.project_name}-subnet-group"
-  }
 }
 
 resource "aws_route53_zone" "internal" {
   name = "${var.project_name}.${var.environment}"
   vpc {
     vpc_id = module.dev_vpc.vpc.vpc_id
-  }
-  tags = {
-    Environment = var.environment
-    Project     = var.project_name
-    Terraform   = "true"
   }
 }
 
@@ -248,8 +243,8 @@ resource "aws_acmpca_certificate_authority" "ca" {
     key_algorithm     = "RSA_4096"
     signing_algorithm = "SHA512WITHRSA"
     subject {
-      common_name = "${var.domain_name}"
-      organization = "${var.project_name}"
+      common_name  = var.domain_name
+      organization = var.project_name
     }
   }
   permanent_deletion_time_in_days = 7

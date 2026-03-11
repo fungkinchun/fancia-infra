@@ -7,11 +7,6 @@ resource "aws_acm_certificate" "cert" {
   lifecycle {
     create_before_destroy = true
   }
-
-  tags = {
-    Name        = "${var.environment}-${var.project_name}-alb-cert"
-    Environment = var.environment
-  }
 }
 
 resource "aws_route53_record" "cert_validation" {

@@ -3,11 +3,6 @@ data "aws_caller_identity" "current" {}
 resource "aws_s3_bucket" "bucket" {
   bucket        = "${var.project_name}-${var.environment}-bucket"
   force_destroy = true
-
-  tags = {
-    Name        = "${var.project_name}-${var.environment}-bucket"
-    Environment = var.environment
-  }
 }
 
 resource "aws_s3_bucket_public_access_block" "bucket_public_access_block" {

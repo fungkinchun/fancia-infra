@@ -24,11 +24,6 @@ module "vpc" {
   create_database_subnet_route_table = true
   create_database_subnet_group       = true
 
-  tags = {
-    Environment = var.environment
-    Terraform   = "true"
-  }
-
   public_subnet_tags = {
     Tier                     = "public"
     "kubernetes.io/role/elb" = 1

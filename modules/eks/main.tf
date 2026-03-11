@@ -29,12 +29,6 @@ module "eks_kms" {
   ]
 
   aliases_use_name_prefix = true
-
-  tags = {
-    Environment = var.environment
-    Project     = var.project_name
-    Terraform   = "true"
-  }
 }
 
 module "eks" {
@@ -59,11 +53,6 @@ module "eks" {
   encryption_config = {
     resources        = ["secrets"]
     provider_key_arn = module.eks_kms.key_arn
-  }
-
-  tags = {
-    Environment = var.environment
-    Terraform   = "true"
   }
 
   depends_on = [module.eks_kms]
@@ -136,11 +125,6 @@ resource "aws_iam_role" "pod_role" {
       }
     ]
   })
-
-  tags = {
-    Environment = var.environment
-    Project     = var.project_name
-  }
 
   depends_on = [module.eks]
 }

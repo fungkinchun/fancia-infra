@@ -17,10 +17,6 @@ resource "aws_security_group" "rds" {
     protocol    = "-1"
     cidr_blocks = ["0.0.0.0/0"]
   }
-
-  tags = {
-    Name = "${var.rds_id}-rds-sg"
-  }
 }
 
 module "rds" {
@@ -60,11 +56,6 @@ module "rds" {
       value = "1"
     }
   ]
-
-  tags = {
-    Environment = "dev"
-    Terraform   = "true"
-  }
 }
 
 resource "aws_route53_record" "rds_cname" {
