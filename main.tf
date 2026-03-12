@@ -35,6 +35,10 @@ output "dev_aws_account_id" {
   value = data.aws_caller_identity.dev_current.account_id
 }
 
+output "domain_name" {
+  value = var.domain_name
+}
+
 output "dev_vpc_id" {
   value = module.dev.vpc_id
 }
