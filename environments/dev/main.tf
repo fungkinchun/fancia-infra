@@ -265,8 +265,8 @@ resource "aws_acmpca_certificate_authority_certificate" "activation" {
 }
 
 resource "aws_acm_certificate" "cert" {
-  domain_name               = "${var.environment}.${var.project_name}.com"
-  subject_alternative_names = ["*.${var.environment}.${var.project_name}.com"]
+  domain_name               = var.domain_name
+  subject_alternative_names = ["*.${var.domain_name}"]
   certificate_authority_arn = aws_acmpca_certificate_authority.ca.arn
 
   lifecycle {
@@ -274,12 +274,12 @@ resource "aws_acm_certificate" "cert" {
   }
 }
 
-output "dev_iam_access_key_id" {
+output "iam_access_key_id" {
   value     = module.dev_iam.account_access_key_id
   sensitive = true
 }
 
-output "dev_iam_secret_access_key" {
+output "iam_secret_access_key" {
   value     = module.dev_iam.account_secret_access_key
   sensitive = true
 }
