@@ -10,8 +10,7 @@ module "dev" {
   github_token     = var.github_token
   vpc_cidr         = "10.0.0.0/16"
   az_count         = 2
-  s3_credentials   = var.s3_credentials
-  smtp_credentials = var.smtp_credentials
+  credentials = var.credentials
 }
 
 data "aws_caller_identity" "dev_current" {}

@@ -202,42 +202,36 @@ module "dev_eks" {
   principal_arn = module.dev_iam.account_arn
 }
 
-resource "aws_secretsmanager_secret" "s3_credentials" {
-  name                    = "${var.environment}/${var.project_name}-backend-user/s3"
-  description             = "S3 credentials for ${var.project_name}-backend-user in ${var.environment}"
-  recovery_window_in_days = var.environment == "prod" ? 7 : 0
-
-  tags = {
-    Environment = var.environment
-    Project     = "${var.project_name}-backend-user"
-    Terraform   = "true"
-    Sensitivity = "high"
+locals {
+  flat_credentials = {
+    for item in flatten([
+      for cred in var.credentials : [
+        for obj in cred.objects : {
+          key                     = "${obj.environment}-${cred.name}"
+          name                    = "${obj.environment}/${var.project_name}-backend-user/${cred.name}"
+          description             = obj.description
+          recovery_window_in_days = obj.environment == "prod" ? 7 : 0
+          tags                    = { Sensitivity = "high" }
+          value                   = obj.value
+        } if obj.environment == var.environment
+      ]
+    ]) : item.key => item
   }
 }
 
-resource "aws_secretsmanager_secret_version" "s3_credentials_version" {
-  secret_id     = aws_secretsmanager_secret.s3_credentials.id
-  secret_string = jsonencode(var.s3_credentials)
+resource "aws_secretsmanager_secret" "credentials" {
+  for_each                = local.flat_credentials
+  name                    = each.value.name
+  description             = each.value.description
+  recovery_window_in_days = each.value.recovery_window_in_days
 }
 
-resource "aws_secretsmanager_secret" "smtp_credentials" {
-  name                    = "${var.environment}/${var.project_name}-backend-user/smtp"
-  description             = "SMTP credentials for ${var.project_name}-backend-user in ${var.environment}"
-  recovery_window_in_days = var.environment == "prod" ? 7 : 0
+resource "aws_secretsmanager_secret_version" "credentials_version" {
+  for_each = local.flat_credentials
 
-  tags = {
-    Environment = var.environment
-    Project     = "${var.project_name}-backend-user"
-    Terraform   = "true"
-    Sensitivity = "high"
-  }
+  secret_id     = aws_secretsmanager_secret.credentials[each.key].id
+  secret_string = jsonencode(each.value.value)
 }
-
-resource "aws_secretsmanager_secret_version" "smtp_credentials_version" {
-  secret_id     = aws_secretsmanager_secret.smtp_credentials.id
-  secret_string = jsonencode(var.smtp_credentials)
-}
-
 
 resource "aws_acmpca_certificate_authority" "ca" {
   type = "ROOT"

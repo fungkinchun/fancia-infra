@@ -63,14 +63,14 @@ variable "username" {
   default     = "admin"
 }
 
-variable "s3_credentials" {
-  type        = map(string)
-  sensitive   = true
-  description = "Map of S3 credentials (access key and secret key) for the backend user"
-}
-
-variable "smtp_credentials" {
-  type        = map(string)
-  sensitive   = true
-  description = "Map of SMTP credentials (username and password) for email sending"
+variable "credentials" {
+  description = "List of credential objects"
+  type = list(object({
+    name = string
+    objects = list(object({
+      environment = string
+      description = string
+      value       = map(string)
+    }))
+  }))
 }

@@ -30,12 +30,14 @@ variable "repo_names" {
   default     = []
 }
 
-variable "s3_credentials" {
-  type        = map(string)
-  description = "S3 credentials for backend user"
-}
-
-variable "smtp_credentials" {
-  type        = map(string)
-  description = "SMTP credentials for backend user"
+variable "credentials" {
+  description = "List of credential objects"
+  type = list(object({
+    name = string
+    objects = list(object({
+      environment = string
+      description = string
+      value       = map(string)
+    }))
+  }))
 }
