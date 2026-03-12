@@ -194,7 +194,7 @@ resource "kubernetes_service_account" "irsa_sa" {
 }
 
 resource "aws_iam_role" "alb_controller" {
-  name                  = "${var.environment}-${var.project_name}-alb-controller-role"
+  name                  = "${var.project_name}-${var.environment}-alb-controller-role"
   force_detach_policies = true
 
   assume_role_policy = jsonencode({
@@ -209,7 +209,7 @@ resource "aws_iam_role" "alb_controller" {
         Condition = {
           StringEquals = {
             "${local.oidc_issuer_url}:aud" = "sts.amazonaws.com"
-            "${local.oidc_issuer_url}:sub" = "system:serviceaccount:kube-system:aws-load-balancer-controller"
+            "${local.oidc_issuer_url}:sub" = "system:serviceaccount:${kubernetes_namespace.namespace.metadata[0].name}:aws-load-balancer-controller"
           }
         }
       }
