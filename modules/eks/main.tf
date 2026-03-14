@@ -119,7 +119,7 @@ resource "aws_iam_role" "pod_role" {
               "system:serviceaccount:${kubernetes_namespace.namespace.metadata[0].name}:${var.project_name}-sa",
               "system:serviceaccount:${kubernetes_namespace.namespace.metadata[0].name}:external-secrets",
               "system:serviceaccount:${kubernetes_namespace.namespace.metadata[0].name}:aws-privateca-issuer",
-              "system:serviceaccount:${kubernetes_namespace.namespace.metadata[0].name}::ebs-csi-controller-sa"
+              "system:serviceaccount:${kubernetes_namespace.namespace.metadata[0].name}:ebs-csi-controller-sa"
             ]
           }
         }
@@ -149,9 +149,9 @@ resource "aws_iam_role_policy" "pod_role_policy" {
         Resource = "*"
       },
       {
-        Sid      = "AllowScopedRead"
-        Effect   = "Allow"
-        Action   = [
+        Sid    = "AllowScopedRead"
+        Effect = "Allow"
+        Action = [
           "secretsmanager:GetSecretValue",
           "secretsmanager:DescribeSecret",
           "secretsmanager:ListSecretVersionIds"
@@ -159,8 +159,8 @@ resource "aws_iam_role_policy" "pod_role_policy" {
         Resource = "arn:aws:secretsmanager:${var.region}:*:secret:*"
       },
       {
-        Effect   = "Allow"
-        Action   = [
+        Effect = "Allow"
+        Action = [
           "acm-pca:GetCertificate",
           "acm-pca:IssueCertificate",
           "acm-pca:DescribeCertificateAuthority"
@@ -168,13 +168,13 @@ resource "aws_iam_role_policy" "pod_role_policy" {
         Resource = "*"
       },
       {
-        Effect    = "Allow"
-        Action    = [
+        Effect = "Allow"
+        Action = [
           "kms:CreateGrant",
           "kms:ListGrants",
           "kms:RevokeGrant"
         ]
-        Resource  = [module.eks_kms.key_arn]
+        Resource = [module.eks_kms.key_arn]
         Condition = {
           Bool = {
             "kms:GrantIsForAWSResource" = "true"
@@ -182,8 +182,8 @@ resource "aws_iam_role_policy" "pod_role_policy" {
         }
       },
       {
-        Effect   = "Allow"
-        Action   = [
+        Effect = "Allow"
+        Action = [
           "kms:Encrypt",
           "kms:Decrypt",
           "kms:ReEncrypt*",
@@ -191,6 +191,33 @@ resource "aws_iam_role_policy" "pod_role_policy" {
           "kms:DescribeKey"
         ]
         Resource = [module.eks_kms.key_arn]
+      },
+      {
+        Effect = "Allow"
+        Action = [
+          "ec2:DescribeVolumes",
+          "ec2:CreateVolume",
+          "ec2:DeleteVolume",
+          "ec2:AttachVolume",
+          "ec2:DetachVolume",
+          "ec2:DescribeAccountAttributes",
+          "ec2:DescribeAddresses",
+          "ec2:DescribeAvailabilityZones",
+          "ec2:DescribeInternetGateways",
+          "ec2:DescribeVpcs",
+          "ec2:DescribeVpcPeeringConnections",
+          "ec2:DescribeSubnets",
+          "ec2:DescribeSecurityGroups",
+          "ec2:DescribeInstances",
+          "ec2:DescribeNetworkInterfaces",
+          "ec2:DescribeTags",
+          "ec2:GetCoipPoolUsage",
+          "ec2:DescribeCoipPools",
+          "ec2:GetSecurityGroupsForVpc",
+          "ec2:DescribeIpamPools",
+          "ec2:DescribeRouteTables",
+        ]
+        Resource = "*"
       }
     ]
   })
