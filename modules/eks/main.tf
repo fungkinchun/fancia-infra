@@ -100,7 +100,7 @@ locals {
 }
 
 resource "aws_iam_role" "pod_role" {
-  name                  = "${var.project_name}-${var.environment}-pod-role"
+  name                  = "${kubernetes_namespace.namespace.metadata[0].name}-pod-role"
   force_detach_policies = true
 
   assume_role_policy = jsonencode({
