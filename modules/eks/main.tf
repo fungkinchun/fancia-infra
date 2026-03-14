@@ -118,7 +118,8 @@ resource "aws_iam_role" "pod_role" {
             "${local.oidc_issuer_url}:sub" = [
               "system:serviceaccount:${kubernetes_namespace.namespace.metadata[0].name}:${var.project_name}-sa",
               "system:serviceaccount:${kubernetes_namespace.namespace.metadata[0].name}:external-secrets",
-              "system:serviceaccount:${kubernetes_namespace.namespace.metadata[0].name}:aws-privateca-issuer"
+              "system:serviceaccount:${kubernetes_namespace.namespace.metadata[0].name}:aws-privateca-issuer",
+              "system:serviceaccount:${kubernetes_namespace.namespace.metadata[0].name}::ebs-csi-controller-sa"
             ]
           }
         }
@@ -134,39 +135,62 @@ resource "aws_iam_role_policy" "pod_role_policy" {
   role = aws_iam_role.pod_role.id
 
   policy = jsonencode({
-    "Version" : "2012-10-17",
-    "Statement" : [
+    Version = "2012-10-17"
+    Statement = [
       {
-        "Effect" : "Allow",
-        "Action" : "sts:GetCallerIdentity",
-        "Resource" : "*"
+        Effect   = "Allow"
+        Action   = "sts:GetCallerIdentity"
+        Resource = "*"
       },
       {
-        "Sid" : "AllowGlobalList",
-        "Effect" : "Allow",
-        "Action" : [
-          "secretsmanager:ListSecrets"
-        ],
-        "Resource" : "*"
+        Sid      = "AllowGlobalList"
+        Effect   = "Allow"
+        Action   = ["secretsmanager:ListSecrets"]
+        Resource = "*"
       },
       {
-        "Sid" : "AllowScopedRead",
-        "Effect" : "Allow",
-        "Action" : [
+        Sid      = "AllowScopedRead"
+        Effect   = "Allow"
+        Action   = [
           "secretsmanager:GetSecretValue",
           "secretsmanager:DescribeSecret",
           "secretsmanager:ListSecretVersionIds"
-        ],
-        "Resource" : "arn:aws:secretsmanager:${var.region}:*:secret:*"
+        ]
+        Resource = "arn:aws:secretsmanager:${var.region}:*:secret:*"
       },
       {
-        "Effect" : "Allow",
-        "Action" : [
+        Effect   = "Allow"
+        Action   = [
           "acm-pca:GetCertificate",
           "acm-pca:IssueCertificate",
           "acm-pca:DescribeCertificateAuthority"
-        ],
-        "Resource" : "*"
+        ]
+        Resource = "*"
+      },
+      {
+        Effect    = "Allow"
+        Action    = [
+          "kms:CreateGrant",
+          "kms:ListGrants",
+          "kms:RevokeGrant"
+        ]
+        Resource  = [module.eks_kms.key_arn]
+        Condition = {
+          Bool = {
+            "kms:GrantIsForAWSResource" = "true"
+          }
+        }
+      },
+      {
+        Effect   = "Allow"
+        Action   = [
+          "kms:Encrypt",
+          "kms:Decrypt",
+          "kms:ReEncrypt*",
+          "kms:GenerateDataKey*",
+          "kms:DescribeKey"
+        ]
+        Resource = [module.eks_kms.key_arn]
       }
     ]
   })
@@ -221,7 +245,7 @@ resource "aws_iam_role" "alb_controller" {
 
 resource "aws_iam_policy" "alb_controller_policy" {
   name   = "alb-controller-policy"
-  policy = file("${path.module}/alb-controller-iam-policy.json")
+  policy = file("${path.module}/alb-controller-role-policy.json")
 }
 
 resource "aws_iam_role_policy_attachment" "alb_controller_policy_attachment" {
@@ -229,24 +253,10 @@ resource "aws_iam_role_policy_attachment" "alb_controller_policy_attachment" {
   policy_arn = aws_iam_policy.alb_controller_policy.arn
 }
 
-module "ebs_csi_irsa" {
-  source = "terraform-aws-modules/iam/aws//modules/iam-role-for-service-accounts-eks"
-
-  role_name             = "ebs-csi-driver"
-  attach_ebs_csi_policy = true
-
-  oidc_providers = {
-    main = {
-      provider_arn               = local.oidc_provider_arn
-      namespace_service_accounts = ["${kubernetes_namespace.namespace.metadata[0].name}:ebs-csi-controller-sa"]
-    }
-  }
-}
-
 resource "aws_eks_addon" "ebs_csi_driver" {
   cluster_name                = module.eks.cluster_name
   addon_name                  = "aws-ebs-csi-driver"
-  service_account_role_arn    = module.ebs_csi_irsa.iam_role_arn
+  service_account_role_arn    = aws_iam_role.pod_role.arn
   resolve_conflicts_on_create = "OVERWRITE"
   resolve_conflicts_on_update = "OVERWRITE"
   configuration_values = jsonencode({
