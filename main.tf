@@ -18,10 +18,12 @@ data "aws_caller_identity" "current" {}
 output "dev" {
   value = {
     domain_name           = var.domain_name
+    email                 = var.email
     aws_account_id        = data.aws_caller_identity.current.account_id
     vpc_id                = module.dev.vpc_id
     private_ca_arn        = module.dev.private_ca_arn
     acm_certificate_arn   = module.dev.acm_certificate_arn
+    hosted_zone_id        = module.dev.hosted_zone_id
     rds_secret_name_map   = module.dev.rds_secret_name_map
     iam_access_key_id     = module.dev.iam_access_key_id
     iam_secret_access_key = module.dev.iam_secret_access_key

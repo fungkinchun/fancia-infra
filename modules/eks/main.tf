@@ -218,10 +218,32 @@ resource "aws_iam_role_policy" "pod_role_policy" {
           "ec2:DescribeRouteTables",
         ]
         Resource = "*"
+      },
+      {
+        Effect   = "Allow"
+        Action   = "route53:GetChange"
+        Resource = "arn:aws:route53:::change/*"
+      },
+      {
+        Effect = "Allow"
+        Action = [
+          "route53:ChangeResourceRecordSets",
+          "route53:ListResourceRecordSets"
+        ]
+        Resource = [var.route53_zone_arn]
+      },
+      {
+        Effect = "Allow"
+        Action = [
+          "route53:ListHostedZones",
+          "route53:ListResourceRecordSets"
+        ]
+        Resource = "*"
       }
     ]
   })
 }
+
 
 resource "kubernetes_namespace" "namespace" {
   metadata {

@@ -173,6 +173,12 @@ resource "aws_route53_zone" "internal" {
   }
 }
 
+resource "aws_route53_zone" "external" {
+  name          = var.domain_name
+  comment       = "Public hosted zone for ${var.domain_name} – managed by Terraform"
+  force_destroy = false
+}
+
 module "dev_rds" {
   source               = "../../modules/rds"
   for_each             = toset(var.repo_names)
@@ -193,13 +199,14 @@ module "dev_rds" {
 }
 
 module "dev_eks" {
-  source        = "../../modules/eks"
-  project_name  = var.project_name
-  environment   = var.environment
-  vpc_id        = module.dev_vpc.vpc.vpc_id
-  subnet_ids    = module.dev_vpc.vpc.private_subnets
-  region        = var.region
-  principal_arn = module.dev_iam.account_arn
+  source           = "../../modules/eks"
+  project_name     = var.project_name
+  environment      = var.environment
+  vpc_id           = module.dev_vpc.vpc.vpc_id
+  subnet_ids       = module.dev_vpc.vpc.private_subnets
+  region           = var.region
+  principal_arn    = module.dev_iam.account_arn
+  route53_zone_arn = aws_route53_zone.external.arn
 }
 
 locals {
@@ -298,4 +305,8 @@ output "private_ca_arn" {
 
 output "acm_certificate_arn" {
   value = aws_acm_certificate.cert.arn
+}
+
+output "hosted_zone_id" {
+  value = aws_route53_zone.external.zone_id
 }

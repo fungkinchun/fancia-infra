@@ -27,3 +27,8 @@ variable "principal_arn" {
   type        = string
   description = "ARN of the Kubernetes service account that will assume the IAM role"
 }
+
+variable "route53_zone_arn" {
+  type        = string
+  description = "Route53 hosted zone ARN for the EKS cluster"
+}

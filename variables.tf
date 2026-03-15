@@ -8,6 +8,11 @@ variable "domain_name" {
   description = "The domain name for the project"
 }
 
+variable "email" {
+  type        = string
+  description = "The email address for the project owner"
+}
+
 variable "region" {
   type        = string
   description = "The region of the project"
