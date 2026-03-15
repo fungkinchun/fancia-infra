@@ -120,7 +120,8 @@ resource "aws_iam_role" "pod_role" {
               "system:serviceaccount:${kubernetes_namespace.namespace.metadata[0].name}:external-secrets",
               "system:serviceaccount:${kubernetes_namespace.namespace.metadata[0].name}:aws-privateca-issuer",
               "system:serviceaccount:${kubernetes_namespace.namespace.metadata[0].name}:ebs-csi-controller-sa",
-              "system:serviceaccount:${kubernetes_namespace.namespace.metadata[0].name}:external-dns"
+              "system:serviceaccount:${kubernetes_namespace.namespace.metadata[0].name}:external-dns",
+              "system:serviceaccount:${kubernetes_namespace.namespace.metadata[0].name}:cert-manager"
             ]
           }
         }
