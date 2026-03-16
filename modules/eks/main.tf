@@ -139,8 +139,6 @@ resource "aws_iam_role" "pod_role" {
       }
     ]
   })
-
-  depends_on = [kubernetes_namespace.namespace]
 }
 
 resource "aws_iam_role_policy" "pod_role_policy" {
