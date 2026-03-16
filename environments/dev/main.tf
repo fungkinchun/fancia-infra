@@ -310,3 +310,7 @@ output "acm_certificate_arn" {
 output "hosted_zone_id" {
   value = aws_route53_zone.external.zone_id
 }
+
+output "pod_role_arn" {
+  value = module.dev_eks.pod_role_arn
+}

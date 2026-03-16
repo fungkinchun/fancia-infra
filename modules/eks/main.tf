@@ -8,11 +8,15 @@ resource "random_id" "kms_suffix" {
   byte_length = 4
 }
 
+locals {
+  namespace = "${var.project_name}-${var.environment}"
+}
+
 module "eks_kms" {
   source  = "terraform-aws-modules/kms/aws"
   version = "~> 2.0"
 
-  description = "KMS key for EKS ${var.project_name}-${var.environment} secrets envelope encryption"
+  description = "KMS key for EKS ${local.namespace} secrets envelope encryption"
 
   key_usage                = "ENCRYPT_DECRYPT"
   customer_master_key_spec = "SYMMETRIC_DEFAULT"
@@ -34,14 +38,14 @@ module "eks_kms" {
 module "eks" {
   source                                   = "terraform-aws-modules/eks/aws"
   version                                  = "~> 21.0"
-  name                                     = "${var.project_name}-${var.environment}-eks"
+  name                                     = "${local.namespace}-eks"
   kubernetes_version                       = "1.33"
   vpc_id                                   = var.vpc_id
   subnet_ids                               = var.subnet_ids
   endpoint_public_access                   = true
   enable_cluster_creator_admin_permissions = true
   authentication_mode                      = "API_AND_CONFIG_MAP"
-  iam_role_name                            = "${var.project_name}-${var.environment}-eks-cluster-role"
+  iam_role_name                            = "${local.namespace}-eks-cluster-role"
 
   compute_config = {
     enabled    = true
@@ -100,7 +104,7 @@ locals {
 }
 
 resource "aws_iam_role" "pod_role" {
-  name                  = "${kubernetes_namespace.namespace.metadata[0].name}-pod-role"
+  name                  = "${local.namespace}-pod-role"
   force_detach_policies = true
 
   assume_role_policy = jsonencode({
@@ -116,12 +120,12 @@ resource "aws_iam_role" "pod_role" {
           StringEquals = {
             "${local.oidc_issuer_url}:aud" = "sts.amazonaws.com"
             "${local.oidc_issuer_url}:sub" = [
-              "system:serviceaccount:${kubernetes_namespace.namespace.metadata[0].name}:${var.project_name}-sa",
-              "system:serviceaccount:${kubernetes_namespace.namespace.metadata[0].name}:external-secrets",
-              "system:serviceaccount:${kubernetes_namespace.namespace.metadata[0].name}:aws-privateca-issuer",
-              "system:serviceaccount:${kubernetes_namespace.namespace.metadata[0].name}:ebs-csi-controller-sa",
-              "system:serviceaccount:${kubernetes_namespace.namespace.metadata[0].name}:external-dns",
-              "system:serviceaccount:${kubernetes_namespace.namespace.metadata[0].name}:cert-manager"
+              "system:serviceaccount:fancia-dev:${var.project_name}-sa",
+              "system:serviceaccount:external-secrets:external-secrets",
+              "system:serviceaccount:cert-manager:aws-privateca-issuer",
+              "system:serviceaccount:kube-system:ebs-csi-controller-sa",
+              "system:serviceaccount:external-dns:external-dns",
+              "system:serviceaccount:cert-manager:cert-manager"
             ]
           }
         }
@@ -129,7 +133,7 @@ resource "aws_iam_role" "pod_role" {
       {
         "Effect" : "Allow",
         "Principal" : {
-          "AWS" : "arn:aws:iam::${data.aws_caller_identity.current.account_id}:role/${var.project_name}-${var.environment}-pod-role"
+          "AWS" : "arn:aws:iam::${data.aws_caller_identity.current.account_id}:role/${local.namespace}-pod-role"
         },
         "Action" : "sts:AssumeRole"
       }
@@ -253,30 +257,8 @@ resource "aws_iam_role_policy" "pod_role_policy" {
   })
 }
 
-
-resource "kubernetes_namespace" "namespace" {
-  metadata {
-    name = "${var.project_name}-${var.environment}"
-  }
-  depends_on = [module.eks]
-}
-
-resource "kubernetes_service_account" "irsa_sa" {
-  metadata {
-    name      = "${var.project_name}-sa"
-    namespace = kubernetes_namespace.namespace.metadata[0].name
-
-    annotations = {
-      "eks.amazonaws.com/role-arn"               = aws_iam_role.pod_role.arn
-      "eks.amazonaws.com/sts-regional-endpoints" = "true"
-    }
-  }
-
-  depends_on = [kubernetes_namespace.namespace]
-}
-
 resource "aws_iam_role" "alb_controller" {
-  name                  = "${var.project_name}-${var.environment}-alb-controller-role"
+  name                  = "${local.namespace}-alb-controller-role"
   force_detach_policies = true
 
   assume_role_policy = jsonencode({
@@ -291,7 +273,7 @@ resource "aws_iam_role" "alb_controller" {
         Condition = {
           StringEquals = {
             "${local.oidc_issuer_url}:aud" = "sts.amazonaws.com"
-            "${local.oidc_issuer_url}:sub" = "system:serviceaccount:${kubernetes_namespace.namespace.metadata[0].name}:aws-load-balancer-controller"
+            "${local.oidc_issuer_url}:sub" = "system:serviceaccount:${local.namespace}:aws-load-balancer-controller"
           }
         }
       }
@@ -321,4 +303,8 @@ output "cluster_ca_certificate" {
 
 output "cluster_name" {
   value = module.eks.cluster_name
+}
+
+output "pod_role_arn" {
+  value = aws_iam_role.pod_role.arn
 }
