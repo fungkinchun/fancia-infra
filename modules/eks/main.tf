@@ -125,6 +125,13 @@ resource "aws_iam_role" "pod_role" {
             ]
           }
         }
+      },
+      {
+        "Effect" : "Allow",
+        "Principal" : {
+          "AWS" : "arn:aws:iam::${data.aws_caller_identity.current.account_id}:role/${var.project_name}-${var.environment}-pod-role"
+        },
+        "Action" : "sts:AssumeRole"
       }
     ]
   })
