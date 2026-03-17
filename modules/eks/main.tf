@@ -264,7 +264,7 @@ resource "aws_iam_role" "alb_controller" {
         Condition = {
           StringEquals = {
             "${local.oidc_issuer_url}:aud" = "sts.amazonaws.com"
-            "${local.oidc_issuer_url}:sub" = "system:serviceaccount:${local.namespace}:aws-load-balancer-controller"
+            "${local.oidc_issuer_url}:sub" = "system:serviceaccount:kube-system:aws-load-balancer-controller"
           }
         }
       }

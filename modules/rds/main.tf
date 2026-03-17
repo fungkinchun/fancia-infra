@@ -82,3 +82,7 @@ output "rds_secret_arn" {
 output "rds_secret_name" {
   value = data.aws_secretsmanager_secret.rds_master_user_secret.name
 }
+
+output "rds_endpoint" {
+  value = module.rds.db_instance_endpoint
+}

@@ -198,6 +198,15 @@ module "dev_rds" {
   depends_on           = [aws_db_subnet_group.main]
 }
 
+resource "aws_route53_record" "rds_alias" {
+  for_each = toset(var.repo_names)
+  zone_id  = aws_route53_zone.external.zone_id
+  name     = "rds.${each.key}.${var.environment}.${var.domain_name}"
+  type     = "CNAME"
+  ttl      = 300
+  records  = [module.dev_rds[each.key].rds_endpoint]
+}
+
 module "dev_eks" {
   source           = "../../modules/eks"
   project_name     = var.project_name
