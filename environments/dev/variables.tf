@@ -19,9 +19,12 @@ variable "environment" {
   description = "The environment (e.g., dev, prod)"
 }
 
-variable "repo_names" {
-  description = "List of CodeArtifact repository names"
-  type        = list(string)
+variable "repositories" {
+  description = "List of CodeArtifact repositories"
+  type = list(object({
+    name       = string
+    is_service = bool
+  }))
 }
 
 variable "github_username" {

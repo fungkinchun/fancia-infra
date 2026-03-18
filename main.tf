@@ -5,7 +5,7 @@ module "dev" {
   domain_name     = var.domain_name
   region          = var.region
   environment     = "dev"
-  repo_names      = var.repo_names
+  repositories      = var.repositories
   github_username = var.github_username
   github_token    = var.github_token
   vpc_cidr        = "10.0.0.0/16"

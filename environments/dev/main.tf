@@ -142,7 +142,9 @@ resource "aws_codeartifact_domain" "codeartifact_domain" {
 
 module "dev_developertools" {
   source                  = "../../modules/developertools"
-  for_each                = toset(var.repo_names)
+  for_each = {
+    for repo in var.repositories : repo.name => repo
+  }
   project_name            = var.project_name
   environment             = var.environment
   repo_name               = each.key
@@ -167,7 +169,7 @@ resource "aws_db_subnet_group" "main" {
 }
 
 resource "aws_route53_zone" "internal" {
-  name = "${var.project_name}.${var.environment}"
+  name = var.domain_name
   vpc {
     vpc_id = module.dev_vpc.vpc.vpc_id
   }
@@ -180,8 +182,11 @@ resource "aws_route53_zone" "external" {
 }
 
 module "dev_rds" {
-  source               = "../../modules/rds"
-  for_each             = toset(var.repo_names)
+  source = "../../modules/rds"
+  for_each = {
+    for repo in var.repositories : repo.name => repo
+    if repo.is_service
+  }
   project_name         = var.project_name
   repo_name            = each.key
   environment          = var.environment
@@ -199,7 +204,10 @@ module "dev_rds" {
 }
 
 resource "aws_route53_record" "rds_alias" {
-  for_each = toset(var.repo_names)
+  for_each = {
+    for repo in var.repositories : repo.name => repo
+    if repo.is_service
+  }
   zone_id  = aws_route53_zone.external.zone_id
   name     = "rds.${each.key}.${var.environment}.${var.domain_name}"
   type     = "CNAME"

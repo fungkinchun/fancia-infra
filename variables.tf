@@ -29,10 +29,12 @@ variable "github_token" {
   description = "The GitHub token for authentication"
 }
 
-variable "repo_names" {
-  type        = list(string)
-  description = "List of repository names to create in CodeArtifact"
-  default     = []
+variable "repositories" {
+  description = "List of repositories to create in CodeArtifact"
+  type = list(object({
+    name       = string
+    is_service = bool
+  }))
 }
 
 variable "credentials" {
