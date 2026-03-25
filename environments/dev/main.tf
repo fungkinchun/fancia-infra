@@ -312,10 +312,10 @@ output "rds_secret_name_map" {
   value = {
     for repo in var.repositories :
     repo.name => {
-      databaseName = repo.override_with_shared_rds != null ? repo.override_with_shared_rds : null
+      databaseName = repo.override_with_shared_rds != null ? repo.override_with_shared_rds : repo.name
       databaseSecretName = (repo.override_with_shared_rds != null
         ? module.dev_rds[repo.override_with_shared_rds].rds_secret_name
-        : null
+        : module.dev_rds[repo.name].rds_secret_name
       )
     }
     if repo.is_service || repo.override_with_shared_rds != null
