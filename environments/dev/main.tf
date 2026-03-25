@@ -141,7 +141,7 @@ resource "aws_codeartifact_domain" "codeartifact_domain" {
 }
 
 module "dev_developertools" {
-  source                  = "../../modules/developertools"
+  source = "../../modules/developertools"
   for_each = {
     for repo in var.repositories : repo.name => repo
   }
@@ -185,7 +185,7 @@ module "dev_rds" {
   source = "../../modules/rds"
   for_each = {
     for repo in var.repositories : repo.name => repo
-    if repo.is_service
+    if repo.is_service && repo.override_with_shared_rds == null
   }
   project_name         = var.project_name
   repo_name            = each.key
@@ -206,13 +206,13 @@ module "dev_rds" {
 resource "aws_route53_record" "rds_alias" {
   for_each = {
     for repo in var.repositories : repo.name => repo
-    if repo.is_service
+    if repo.is_service && repo.override_with_shared_rds == null
   }
-  zone_id  = aws_route53_zone.external.zone_id
-  name     = "rds.${each.key}.${var.environment}.${var.domain_name}"
-  type     = "CNAME"
-  ttl      = 300
-  records  = [module.dev_rds[each.key].rds_endpoint]
+  zone_id = aws_route53_zone.external.zone_id
+  name    = "rds.${each.key}.${var.environment}.${var.domain_name}"
+  type    = "CNAME"
+  ttl     = 300
+  records = [module.dev_rds[each.key].rds_endpoint]
 }
 
 module "dev_eks" {
@@ -309,8 +309,19 @@ output "iam_secret_access_key" {
 }
 
 output "rds_secret_name_map" {
-  value = { for k, v in module.dev_rds : k => v.rds_secret_name }
+  value = {
+    for repo in var.repositories :
+    repo.name => {
+      databaseName = repo.override_with_shared_rds != null ? repo.override_with_shared_rds : null
+      databaseSecretName = (repo.override_with_shared_rds != null
+        ? module.dev_rds[repo.override_with_shared_rds].rds_secret_name
+        : null
+      )
+    }
+    if repo.is_service || repo.override_with_shared_rds != null
+  }
 }
+
 
 output "vpc_id" {
   value = module.dev_vpc.vpc_id

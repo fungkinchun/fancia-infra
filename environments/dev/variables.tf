@@ -22,8 +22,9 @@ variable "environment" {
 variable "repositories" {
   description = "List of CodeArtifact repositories"
   type = list(object({
-    name       = string
-    is_service = bool
+    name                     = string
+    is_service               = bool
+    override_with_shared_rds = optional(string)
   }))
 }
 
