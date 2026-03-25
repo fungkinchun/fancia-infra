@@ -34,6 +34,7 @@ variable "repositories" {
   type = list(object({
     name       = string
     is_service = bool
+    override_with_shared_rds = optional(string)
   }))
 }
 
