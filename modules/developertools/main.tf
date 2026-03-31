@@ -17,7 +17,7 @@ resource "aws_codebuild_project" "codebuild_project" {
     compute_type    = "BUILD_GENERAL1_SMALL"
     image           = "aws/codebuild/standard:5.0"
     type            = "LINUX_CONTAINER"
-    privileged_mode = false
+    privileged_mode = true
 
     environment_variable {
       name  = "ENV"
