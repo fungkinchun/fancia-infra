@@ -273,8 +273,8 @@ resource "aws_acmpca_certificate_authority" "ca" {
 
 resource "aws_acmpca_certificate" "root" {
   count = var.environment == "prod" ? 1 : 0
-  certificate_authority_arn   = aws_acmpca_certificate_authority.ca.arn
-  certificate_signing_request = aws_acmpca_certificate_authority.ca.certificate_signing_request
+  certificate_authority_arn   = aws_acmpca_certificate_authority.ca[count.index].arn
+  certificate_signing_request = aws_acmpca_certificate_authority.ca[count.index].certificate_signing_request
   signing_algorithm           = "SHA512WITHRSA"
 
   template_arn = "arn:aws:acm-pca:::template/RootCACertificate/V1"
@@ -287,15 +287,15 @@ resource "aws_acmpca_certificate" "root" {
 
 resource "aws_acmpca_certificate_authority_certificate" "activation" {
   count = var.environment == "prod" ? 1 : 0
-  certificate_authority_arn = aws_acmpca_certificate_authority.ca.arn
-  certificate               = aws_acmpca_certificate.root.certificate
+  certificate_authority_arn = aws_acmpca_certificate_authority.ca[count.index].arn
+  certificate               = aws_acmpca_certificate.root[count.index].certificate
 }
 
 resource "aws_acm_certificate" "cert" {
   count = var.environment == "prod" ? 1 : 0
   domain_name               = var.domain_name
   subject_alternative_names = ["*.${var.domain_name}"]
-  certificate_authority_arn = aws_acmpca_certificate_authority.ca.arn
+  certificate_authority_arn = aws_acmpca_certificate_authority.ca[count.index].arn
 
   lifecycle {
     create_before_destroy = true
@@ -332,7 +332,7 @@ output "vpc_id" {
 }
 
 output "acm_certificate_arn" {
-  value = aws_acm_certificate.cert.arn
+  value = aws_acm_certificate.cert[*].arn
 }
 
 output "hosted_zone_id" {
