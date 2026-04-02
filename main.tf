@@ -21,7 +21,6 @@ output "dev" {
     email                 = var.email
     aws_account_id        = data.aws_caller_identity.current.account_id
     vpc_id                = module.dev.vpc_id
-    private_ca_arn        = module.dev.private_ca_arn
     acm_certificate_arn   = module.dev.acm_certificate_arn
     hosted_zone_id        = module.dev.hosted_zone_id
     rds_secret_name_map   = module.dev.rds_secret_name_map

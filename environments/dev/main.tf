@@ -331,10 +331,6 @@ output "vpc_id" {
   value = module.dev_vpc.vpc_id
 }
 
-output "private_ca_arn" {
-  value = aws_acmpca_certificate_authority.ca.arn
-}
-
 output "acm_certificate_arn" {
   value = aws_acm_certificate.cert.arn
 }

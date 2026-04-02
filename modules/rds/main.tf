@@ -35,7 +35,6 @@ module "rds" {
   db_name                     = var.db_name
   username                    = var.project_name
   manage_master_user_password = true
-
   port = 5432
 
   multi_az               = false
