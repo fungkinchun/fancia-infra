@@ -258,6 +258,7 @@ resource "aws_secretsmanager_secret_version" "credentials_version" {
 }
 
 resource "aws_acmpca_certificate_authority" "ca" {
+  count = var.environment == "prod" ? 1 : 0
   type = "ROOT"
   certificate_authority_configuration {
     key_algorithm     = "RSA_4096"
@@ -271,6 +272,7 @@ resource "aws_acmpca_certificate_authority" "ca" {
 }
 
 resource "aws_acmpca_certificate" "root" {
+  count = var.environment == "prod" ? 1 : 0
   certificate_authority_arn   = aws_acmpca_certificate_authority.ca.arn
   certificate_signing_request = aws_acmpca_certificate_authority.ca.certificate_signing_request
   signing_algorithm           = "SHA512WITHRSA"
@@ -284,11 +286,13 @@ resource "aws_acmpca_certificate" "root" {
 }
 
 resource "aws_acmpca_certificate_authority_certificate" "activation" {
+  count = var.environment == "prod" ? 1 : 0
   certificate_authority_arn = aws_acmpca_certificate_authority.ca.arn
   certificate               = aws_acmpca_certificate.root.certificate
 }
 
 resource "aws_acm_certificate" "cert" {
+  count = var.environment == "prod" ? 1 : 0
   domain_name               = var.domain_name
   subject_alternative_names = ["*.${var.domain_name}"]
   certificate_authority_arn = aws_acmpca_certificate_authority.ca.arn
