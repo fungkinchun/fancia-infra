@@ -1,0 +1,326 @@
+data "aws_caller_identity" "current" {}
+
+data "aws_iam_role" "codebuild_role" {
+  name = "${var.project_name}-infra-codebuild-role"
+}
+
+resource "random_id" "kms_suffix" {
+  byte_length = 4
+}
+
+locals {
+  namespace = "${var.project_name}-${var.environment}"
+}
+
+module "eks_kms" {
+  source  = "terraform-aws-modules/kms/aws"
+  version = "~> 2.0"
+
+  description = "KMS key for EKS ${local.namespace} secrets envelope encryption"
+
+  key_usage                = "ENCRYPT_DECRYPT"
+  customer_master_key_spec = "SYMMETRIC_DEFAULT"
+  enable_key_rotation      = true
+
+  key_administrators = [
+    var.principal_arn
+  ]
+
+  key_users = []
+
+  key_service_users = [
+    var.principal_arn
+  ]
+
+  aliases_use_name_prefix = true
+}
+
+module "eks" {
+  source                                   = "terraform-aws-modules/eks/aws"
+  version                                  = "~> 21.0"
+  name                                     = "${local.namespace}-eks"
+  kubernetes_version                       = "1.33"
+  vpc_id                                   = var.vpc_id
+  subnet_ids                               = var.subnet_ids
+  endpoint_public_access                   = true
+  enable_cluster_creator_admin_permissions = true
+  authentication_mode                      = "API_AND_CONFIG_MAP"
+  iam_role_name                            = "${local.namespace}-eks-cluster-role"
+
+  compute_config = {
+    enabled    = true
+    node_pools = ["general-purpose"]
+  }
+
+  create_kms_key = false
+
+  encryption_config = {
+    resources        = ["secrets"]
+    provider_key_arn = module.eks_kms.key_arn
+  }
+
+  depends_on = [module.eks_kms]
+}
+
+resource "aws_eks_access_entry" "main" {
+  cluster_name  = module.eks.cluster_name
+  principal_arn = var.principal_arn
+  type          = "STANDARD"
+}
+
+resource "aws_eks_access_policy_association" "main" {
+  cluster_name  = module.eks.cluster_name
+  policy_arn    = "arn:aws:eks::aws:cluster-access-policy/AmazonEKSClusterAdminPolicy"
+  principal_arn = var.principal_arn
+
+  access_scope {
+    type = "cluster"
+  }
+}
+
+provider "kubernetes" {
+  host                   = module.eks.cluster_endpoint
+  cluster_ca_certificate = base64decode(module.eks.cluster_certificate_authority_data)
+
+  exec {
+    api_version = "client.authentication.k8s.io/v1beta1"
+    command     = "aws"
+    args = [
+      "eks",
+      "get-token",
+      "--cluster-name",
+      module.eks.cluster_name,
+      "--region",
+      var.region,
+      "--output",
+      "json"
+    ]
+  }
+}
+
+locals {
+  oidc_issuer_url   = trimprefix(module.eks.cluster_oidc_issuer_url, "https://")
+  oidc_provider_arn = module.eks.oidc_provider_arn
+}
+
+resource "aws_iam_role" "pod_role" {
+  name                  = "${local.namespace}-pod-role"
+  force_detach_policies = true
+
+  assume_role_policy = jsonencode({
+    Version = "2012-10-17"
+    Statement = [
+      {
+        Effect = "Allow"
+        Principal = {
+          Federated = local.oidc_provider_arn
+        }
+        Action = "sts:AssumeRoleWithWebIdentity"
+        Condition = {
+          StringEquals = {
+            "${local.oidc_issuer_url}:aud" = "sts.amazonaws.com"
+            "${local.oidc_issuer_url}:sub" = [
+              "system:serviceaccount:fancia-dev:${var.project_name}-sa",
+              "system:serviceaccount:external-secrets:external-secrets",
+              "system:serviceaccount:cert-manager:aws-privateca-issuer",
+              "system:serviceaccount:kube-system:ebs-csi-controller-sa",
+              "system:serviceaccount:external-dns:external-dns",
+              "system:serviceaccount:cert-manager:cert-manager",
+              "system:serviceaccount:monitoring:loki",
+              "system:serviceaccount:monitoring:alloy",
+              "system:serviceaccount:monitoring:keda"
+            ]
+          }
+        }
+      }
+    ]
+  })
+}
+
+resource "aws_iam_role_policy" "pod_role_policy" {
+  name = "eks-pod-role-policy"
+  role = aws_iam_role.pod_role.id
+
+  policy = jsonencode({
+    Version = "2012-10-17"
+    Statement = [
+      {
+        Effect   = "Allow"
+        Action   = "sts:GetCallerIdentity"
+        Resource = "*"
+      },
+      {
+        Sid      = "AllowGlobalList"
+        Effect   = "Allow"
+        Action   = ["secretsmanager:ListSecrets"]
+        Resource = "*"
+      },
+      {
+        Sid    = "AllowScopedRead"
+        Effect = "Allow"
+        Action = [
+          "secretsmanager:GetSecretValue",
+          "secretsmanager:DescribeSecret",
+          "secretsmanager:ListSecretVersionIds"
+        ]
+        Resource = "arn:aws:secretsmanager:${var.region}:*:secret:*"
+      },
+      {
+        Effect = "Allow"
+        Action = [
+          "acm-pca:GetCertificate",
+          "acm-pca:IssueCertificate",
+          "acm-pca:DescribeCertificateAuthority"
+        ]
+        Resource = "*"
+      },
+      {
+        Effect = "Allow"
+        Action = [
+          "kms:CreateGrant",
+          "kms:ListGrants",
+          "kms:RevokeGrant"
+        ]
+        Resource = [module.eks_kms.key_arn]
+        Condition = {
+          Bool = {
+            "kms:GrantIsForAWSResource" = "true"
+          }
+        }
+      },
+      {
+        Effect = "Allow"
+        Action = [
+          "kms:Encrypt",
+          "kms:Decrypt",
+          "kms:ReEncrypt*",
+          "kms:GenerateDataKey*",
+          "kms:DescribeKey"
+        ]
+        Resource = [module.eks_kms.key_arn]
+      },
+      {
+        Effect = "Allow"
+        Action = [
+          "ec2:DescribeVolumes",
+          "ec2:CreateVolume",
+          "ec2:DeleteVolume",
+          "ec2:AttachVolume",
+          "ec2:DetachVolume",
+          "ec2:DescribeAccountAttributes",
+          "ec2:DescribeAddresses",
+          "ec2:DescribeAvailabilityZones",
+          "ec2:DescribeInternetGateways",
+          "ec2:DescribeVpcs",
+          "ec2:DescribeVpcPeeringConnections",
+          "ec2:DescribeSubnets",
+          "ec2:DescribeSecurityGroups",
+          "ec2:DescribeInstances",
+          "ec2:DescribeNetworkInterfaces",
+          "ec2:DescribeTags",
+          "ec2:GetCoipPoolUsage",
+          "ec2:DescribeCoipPools",
+          "ec2:GetSecurityGroupsForVpc",
+          "ec2:DescribeIpamPools",
+          "ec2:DescribeRouteTables",
+        ]
+        Resource = "*"
+      },
+      {
+        Effect   = "Allow"
+        Action   = "route53:GetChange"
+        Resource = "arn:aws:route53:::change/*"
+      },
+      {
+        Effect = "Allow"
+        Action = [
+          "route53:ChangeResourceRecordSets",
+          "route53:ListResourceRecordSets"
+        ]
+        Resource = [var.route53_zone_arn]
+      },
+      {
+        Effect = "Allow"
+        Action = [
+          "route53:ListHostedZones",
+          "route53:ListResourceRecordSets"
+        ]
+        Resource = "*"
+      },
+      {
+        Effect = "Allow"
+        Action = [
+         "s3:ListBucket"
+        ]
+        Resource = [
+          "arn:aws:s3:::${var.project_name}-loki-chunk-bucket",
+          "arn:aws:s3:::${var.project_name}-loki-ruler-bucket"
+        ]
+      },
+      {
+        Effect = "Allow"
+        Action = [
+         "s3:GetObject",
+          "s3:PutObject",
+          "s3:DeleteObject"
+        ]
+        Resource = [
+          "arn:aws:s3:::${var.project_name}-loki-chunk-bucket/*",
+          "arn:aws:s3:::${var.project_name}-loki-ruler-bucket/*"
+        ]
+      }
+    ]
+  })
+}
+
+resource "aws_iam_role" "alb_controller" {
+  name                  = "${local.namespace}-alb-controller-role"
+  force_detach_policies = true
+
+  assume_role_policy = jsonencode({
+    Version = "2012-10-17"
+    Statement = [
+      {
+        Effect = "Allow"
+        Principal = {
+          Federated = local.oidc_provider_arn
+        }
+        Action = "sts:AssumeRoleWithWebIdentity"
+        Condition = {
+          StringEquals = {
+            "${local.oidc_issuer_url}:aud" = "sts.amazonaws.com"
+            "${local.oidc_issuer_url}:sub" = "system:serviceaccount:kube-system:aws-load-balancer-controller"
+          }
+        }
+      }
+    ]
+  })
+
+  depends_on = [module.eks]
+}
+
+resource "aws_iam_policy" "alb_controller_policy" {
+  name   = "alb-controller-policy"
+  policy = file("${path.module}/alb-controller-role-policy.json")
+}
+
+resource "aws_iam_role_policy_attachment" "alb_controller_policy_attachment" {
+  role       = aws_iam_role.alb_controller.name
+  policy_arn = aws_iam_policy.alb_controller_policy.arn
+}
+
+output "cluster_endpoint" {
+  value = module.eks.cluster_endpoint
+}
+
+output "cluster_ca_certificate" {
+  value = module.eks.cluster_certificate_authority_data
+}
+
+output "cluster_name" {
+  value = module.eks.cluster_name
+}
+
+output "pod_role_arn" {
+  value = aws_iam_role.pod_role.arn
+}
