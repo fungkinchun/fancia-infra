@@ -10,13 +10,13 @@ provider "aws" {
 }
 
 module "iam" {
-  source       = "../../modules/iam"
+  source       = "../modules/iam"
   region       = var.region
   account_name = "${var.project_name}-${var.environment}-user"
 }
 
 module "s3" {
-  source       = "../../modules/s3"
+  source       = "../modules/s3"
   bucket_name  = "${var.project_name}-${var.environment}-bucket"
   environment  = var.environment
   project_name = var.project_name
@@ -142,7 +142,7 @@ resource "aws_codeartifact_domain" "codeartifact_domain" {
 }
 
 module "developertools" {
-  source = "../../modules/developertools"
+  source = "../modules/developertools"
   for_each = {
     for repo in var.repositories : repo.name => repo
   }
@@ -157,7 +157,7 @@ module "developertools" {
 }
 
 module "vpc" {
-  source       = "../../modules/vpc"
+  source       = "../modules/vpc"
   project_name = var.project_name
   vpc_cidr     = "10.0.0.0/16"
   az_count     = 2
@@ -183,7 +183,7 @@ resource "aws_route53_zone" "external" {
 }
 
 module "rds" {
-  source = "../../modules/rds"
+  source = "../modules/rds"
   for_each = {
     for repo in var.repositories : repo.name => repo
     if repo.is_service && repo.override_with_shared_rds == null
@@ -217,7 +217,7 @@ resource "aws_route53_record" "rds_alias" {
 }
 
 module "eks" {
-  source           = "../../modules/eks"
+  source           = "../modules/eks"
   project_name     = var.project_name
   environment      = var.environment
   vpc_id           = module.vpc.vpc.vpc_id
@@ -228,7 +228,7 @@ module "eks" {
 }
 
 module "eks_s3_loki_chunk" {
-  source       = "../../modules/s3"
+  source       = "../modules/s3"
   bucket_name  = "${var.project_name}-loki-chunk-bucket"
   environment  = var.environment
   project_name = var.project_name
@@ -236,7 +236,7 @@ module "eks_s3_loki_chunk" {
 }
 
 module "eks_s3_loki_ruler" {
-  source       = "../../modules/s3"
+  source       = "../modules/s3"
   bucket_name  = "${var.project_name}-loki-ruler-bucket"
   environment  = var.environment
   project_name = var.project_name
@@ -321,7 +321,7 @@ resource "aws_acm_certificate" "cert" {
 }
 
 module "rds_scaler" {
-  source = "../../modules/lambda/rds_scheduler"
+  source = "../modules/lambda/rds_scheduler"
   project_name = var.project_name
   environment = var.environment
   start_schedule = "cron(0 12 ? * MON-FRI *)"
