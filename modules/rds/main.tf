@@ -25,6 +25,7 @@ module "rds" {
   identifier = var.rds_id
 
   engine = "postgres"
+  family = "postgres18"
 
   instance_class    = var.instance_class
   allocated_storage = var.allocated_storage
