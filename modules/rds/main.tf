@@ -48,7 +48,7 @@ module "rds" {
   parameters = [
     {
       name  = "log_connections"
-      value = "1"
+      value = "all"
     },
     {
       name  = "log_disconnections"
