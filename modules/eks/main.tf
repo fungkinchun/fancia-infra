@@ -237,7 +237,7 @@ resource "aws_iam_role_policy" "pod_role_policy" {
           "route53:ChangeResourceRecordSets",
           "route53:ListResourceRecordSets"
         ]
-        Resource = [var.route53_zone_arn]
+        Resource = [var.route53_private_zone_arn, var.route53_public_zone_arn]
       },
       {
         Effect = "Allow"

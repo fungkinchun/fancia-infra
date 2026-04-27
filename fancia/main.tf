@@ -169,14 +169,14 @@ resource "aws_db_subnet_group" "main" {
   subnet_ids = module.vpc.vpc.public_subnets
 }
 
-resource "aws_route53_zone" "internal" {
+resource "aws_route53_zone" "private" {
   name = var.domain_name
   vpc {
     vpc_id = module.vpc.vpc.vpc_id
   }
 }
 
-resource "aws_route53_zone" "external" {
+resource "aws_route53_zone" "public" {
   name          = var.domain_name
   comment       = "Public hosted zone for ${var.domain_name} - managed by Terraform"
   force_destroy = true
@@ -209,7 +209,7 @@ resource "aws_route53_record" "rds_alias" {
     for repo in var.repositories : repo.name => repo
     if repo.is_service && repo.override_with_shared_rds == null
   }
-  zone_id = aws_route53_zone.external.zone_id
+  zone_id = aws_route53_zone.public.zone_id
   name    = "rds.${each.key}.${var.environment}.${var.domain_name}"
   type    = "CNAME"
   ttl     = 300
@@ -224,7 +224,8 @@ module "eks" {
   subnet_ids       = module.vpc.vpc.private_subnets
   region           = var.region
   principal_arn    = module.iam.account_arn
-  route53_zone_arn = aws_route53_zone.external.arn
+  route53_private_zone_arn = aws_route53_zone.private.arn
+  route53_public_zone_arn = aws_route53_zone.public.arn
 }
 
 module "eks_s3_loki_chunk" {
@@ -370,8 +371,12 @@ output "acm_certificate_arn" {
   value = aws_acm_certificate.cert[*].arn
 }
 
-output "hosted_zone_id" {
-  value = aws_route53_zone.external.zone_id
+output "private_hosted_zone_id" {
+  value = aws_route53_zone.private.zone_id
+}
+
+output "public_hosted_zone_id" {
+  value = aws_route53_zone.public.zone_id
 }
 
 output "pod_role_arn" {
