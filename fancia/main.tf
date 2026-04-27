@@ -16,11 +16,11 @@ module "iam" {
 }
 
 module "s3" {
-  source       = "../modules/s3"
-  bucket_name  = "${var.project_name}-${var.environment}-bucket"
-  environment  = var.environment
-  project_name = var.project_name
-  region       = var.region
+  source             = "../modules/s3"
+  bucket_name        = "${var.project_name}-${var.environment}-bucket"
+  environment        = var.environment
+  project_name       = var.project_name
+  region             = var.region
   cloudfront_enabled = true
 }
 
@@ -191,7 +191,7 @@ module "rds" {
   project_name         = var.project_name
   repo_name            = each.key
   environment          = var.environment
-  zone_id              = aws_route53_zone.internal.zone_id
+  zone_id              = aws_route53_zone.private.zone_id
   rds_id               = "${var.environment}-${each.key}"
   db_name              = var.project_name
   username             = var.username
@@ -217,15 +217,15 @@ resource "aws_route53_record" "rds_alias" {
 }
 
 module "eks" {
-  source           = "../modules/eks"
-  project_name     = var.project_name
-  environment      = var.environment
-  vpc_id           = module.vpc.vpc.vpc_id
-  subnet_ids       = module.vpc.vpc.private_subnets
-  region           = var.region
-  principal_arn    = module.iam.account_arn
+  source                   = "../modules/eks"
+  project_name             = var.project_name
+  environment              = var.environment
+  vpc_id                   = module.vpc.vpc.vpc_id
+  subnet_ids               = module.vpc.vpc.private_subnets
+  region                   = var.region
+  principal_arn            = module.iam.account_arn
   route53_private_zone_arn = aws_route53_zone.private.arn
-  route53_public_zone_arn = aws_route53_zone.public.arn
+  route53_public_zone_arn  = aws_route53_zone.public.arn
 }
 
 module "eks_s3_loki_chunk" {
@@ -278,7 +278,7 @@ resource "aws_secretsmanager_secret_version" "credentials_version" {
 
 resource "aws_acmpca_certificate_authority" "ca" {
   count = var.environment == "prod" ? 1 : 0
-  type = "ROOT"
+  type  = "ROOT"
   certificate_authority_configuration {
     key_algorithm     = "RSA_4096"
     signing_algorithm = "SHA512WITHRSA"
@@ -291,7 +291,7 @@ resource "aws_acmpca_certificate_authority" "ca" {
 }
 
 resource "aws_acmpca_certificate" "root" {
-  count = var.environment == "prod" ? 1 : 0
+  count                       = var.environment == "prod" ? 1 : 0
   certificate_authority_arn   = aws_acmpca_certificate_authority.ca[count.index].arn
   certificate_signing_request = aws_acmpca_certificate_authority.ca[count.index].certificate_signing_request
   signing_algorithm           = "SHA512WITHRSA"
@@ -305,13 +305,13 @@ resource "aws_acmpca_certificate" "root" {
 }
 
 resource "aws_acmpca_certificate_authority_certificate" "activation" {
-  count = var.environment == "prod" ? 1 : 0
+  count                     = var.environment == "prod" ? 1 : 0
   certificate_authority_arn = aws_acmpca_certificate_authority.ca[count.index].arn
   certificate               = aws_acmpca_certificate.root[count.index].certificate
 }
 
 resource "aws_acm_certificate" "cert" {
-  count = var.environment == "prod" ? 1 : 0
+  count                     = var.environment == "prod" ? 1 : 0
   domain_name               = var.domain_name
   subject_alternative_names = ["*.${var.domain_name}"]
   certificate_authority_arn = aws_acmpca_certificate_authority.ca[count.index].arn
@@ -322,11 +322,11 @@ resource "aws_acm_certificate" "cert" {
 }
 
 module "rds_scaler" {
-  source = "../modules/lambda/rds_scheduler"
-  project_name = var.project_name
-  environment = var.environment
+  source         = "../modules/lambda/rds_scheduler"
+  project_name   = var.project_name
+  environment    = var.environment
   start_schedule = "cron(0 12 ? * MON-FRI *)"
-  stop_schedule = "cron(0 18 ? * MON-FRI *)"
+  stop_schedule  = "cron(0 18 ? * MON-FRI *)"
 }
 
 output "iam_access_key_id" {
@@ -358,7 +358,7 @@ output "credentials_name_map" {
     for cred in var.credentials :
     cred.name => {
       secretName = aws_secretsmanager_secret.credentials["${var.environment}-${cred.name}"].name
-      namespace = local.flat_credentials["${var.environment}-${cred.name}"].namespace
+      namespace  = local.flat_credentials["${var.environment}-${cred.name}"].namespace
     }
   }
 }
