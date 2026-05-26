@@ -29,6 +29,7 @@ output "dev" {
     credentials_name_map   = module.dev.credentials_name_map
     iam_access_key_id      = module.dev.iam_access_key_id
     iam_secret_access_key  = module.dev.iam_secret_access_key
+    subnet_ids             = module.dev.subnet_ids
   }
   sensitive = true
 }

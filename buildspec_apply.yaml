@@ -17,6 +17,7 @@ phases:
     commands:
       - echo "Exporting Terraform outputs to JSON..."
       - terraform output -json > tf_outputs.json
+      - aws s3 cp tf_outputs.json s3://${PROJECT_NAME}-infra-terraform-state/tf_outputs.json
 artifacts:
   files:
     - tf_outputs.json

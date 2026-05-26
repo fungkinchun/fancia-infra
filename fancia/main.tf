@@ -367,3 +367,7 @@ output "public_hosted_zone_id" {
 output "pod_role_arn" {
   value = module.cluster[*].pod_role_arn
 }
+
+output "subnet_ids" {
+  value = module.vpc.vpc.private_subnets
+}
