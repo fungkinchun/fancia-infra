@@ -32,3 +32,8 @@ variable "github_token" {
   type        = string
   description = "GitHub token for authentication"
 }
+
+variable "use_eks" {
+  type        = bool
+  description = "Whether to use EKS for the build environment"
+}

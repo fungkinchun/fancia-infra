@@ -43,6 +43,11 @@ resource "aws_codebuild_project" "codebuild_project" {
       name  = "ACCOUNT_ID"
       value = data.aws_caller_identity.current.account_id
     }
+
+    environment_variable {
+      name  = "USE_EKS"
+      value = var.use_eks ? "true" : "false"
+    }
   }
 
   source {

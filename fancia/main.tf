@@ -153,6 +153,7 @@ module "developertools" {
   codebuild_role_arn      = aws_iam_role.codebuild_role.arn
   github_username         = var.github_username
   github_token            = var.github_token
+  use_eks                 = var.use_eks
   depends_on              = [aws_codeartifact_domain.codeartifact_domain]
 }
 
@@ -217,7 +218,7 @@ resource "aws_route53_record" "rds_alias" {
 }
 
 module "cluster" {
-  count                   = var.use_eks ? 1 : 0
+  count                    = var.use_eks ? 1 : 0
   source                   = "../modules/cluster"
   project_name             = var.project_name
   environment              = var.environment
