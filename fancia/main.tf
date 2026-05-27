@@ -24,6 +24,14 @@ module "s3" {
   cloudfront_enabled = true
 }
 
+module "s3_artifacts" {
+  source       = "../modules/s3"
+  bucket_name  = "${var.project_name}-${var.environment}-backend-artifacts"
+  environment  = var.environment
+  project_name = var.project_name
+  region       = var.region
+}
+
 resource "aws_iam_role" "codebuild_role" {
   name               = "${var.project_name}-codebuild-role"
   assume_role_policy = data.aws_iam_policy_document.codebuild_assume_role_policy.json
