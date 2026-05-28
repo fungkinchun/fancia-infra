@@ -138,6 +138,18 @@ data "aws_iam_policy_document" "codebuild_policy" {
     ]
     resources = ["*"]
   }
+  statement {
+    actions = [
+      "lambda:InvokeFunction",
+      "lambda:CreateFunction",
+      "lambda:UpdateFunctionCode",
+      "lambda:DeleteFunction",
+      "lambda:GetFunction",
+      "lambda:PublishVersion",
+      "lambda:UpdateFunctionConfiguration"
+    ]
+    resources = ["*"]
+  }
 }
 
 resource "aws_codestarconnections_connection" "github" {
