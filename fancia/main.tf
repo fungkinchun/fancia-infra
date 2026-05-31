@@ -146,7 +146,8 @@ data "aws_iam_policy_document" "codebuild_policy" {
       "lambda:DeleteFunction",
       "lambda:GetFunction",
       "lambda:PublishVersion",
-      "lambda:UpdateFunctionConfiguration"
+      "lambda:GetFunctionConfiguration",
+      "lambda:UpdateFunctionConfiguration",
     ]
     resources = ["*"]
   }
