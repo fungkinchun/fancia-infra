@@ -148,6 +148,10 @@ data "aws_iam_policy_document" "codebuild_policy" {
       "lambda:PublishVersion",
       "lambda:GetFunctionConfiguration",
       "lambda:UpdateFunctionConfiguration",
+      "lambda:UpdateAlias",
+      "lambda:GetAlias",
+      "lambda:CreateAlias",
+      "lambda:DeleteAlias"
     ]
     resources = ["*"]
   }
