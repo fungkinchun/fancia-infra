@@ -24,6 +24,21 @@ module "s3" {
   cloudfront_enabled = true
 }
 
+resource "aws_s3_bucket_cors_configuration" "app_bucket" {
+  bucket = module.s3.bucket_id
+  cors_rule {
+    allowed_headers = ["*"]
+    allowed_methods = ["GET", "PUT", "HEAD"]
+    allowed_origins = [
+      "http://localhost:3000",
+      "https://fancia.co.uk",
+      "https://www.fancia.co.uk",
+    ]
+    expose_headers  = ["ETag"]
+    max_age_seconds = 3000
+  }
+}
+
 module "s3_artifacts" {
   source       = "../modules/s3"
   bucket_name  = "${var.project_name}-${var.environment}-backend-artifacts"
