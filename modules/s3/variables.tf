@@ -23,15 +23,3 @@ variable "cloudfront_enabled" {
   description = "Whether to enable CloudFront distribution for the S3 bucket"
   default     = false
 }
-
-variable "domain_name" {
-  type        = string
-  description = "Apex domain (e.g. fancia.co.uk). CDN hostname is cdn.<domain_name>."
-  default     = ""
-}
-
-variable "public_zone_id" {
-  type        = string
-  description = "Route 53 public hosted zone ID for CDN alias and ACM validation"
-  default     = ""
-}
