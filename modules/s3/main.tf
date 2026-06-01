@@ -1,7 +1,7 @@
 data "aws_caller_identity" "current" {}
 
 resource "aws_s3_bucket" "bucket" {
-  bucket        = "${var.bucket_name}"
+  bucket        = var.bucket_name
   force_destroy = true
 }
 
@@ -28,7 +28,7 @@ resource "aws_s3_bucket_policy" "bucket_policy" {
         Action   = "s3:GetObject"
         Resource = "${aws_s3_bucket.bucket.arn}/*"
         Condition = {
-          StringEquals = {
+          StringLike = {
             "AWS:SourceArn" = "arn:aws:cloudfront::${data.aws_caller_identity.current.account_id}:distribution/*"
           }
         }
@@ -55,51 +55,4 @@ resource "aws_s3_bucket_server_side_encryption_configuration" "bucket_encryption
       sse_algorithm = "AES256"
     }
   }
-}
-
-resource "aws_cloudfront_origin_access_control" "s3_origin_access_control" {
-  count                             = var.cloudfront_enabled ? 1 : 0
-  name                              = "${aws_s3_bucket.bucket.id}-oac"
-  description                       = "OAC for S3 bucket ${aws_s3_bucket.bucket.id}"
-  origin_access_control_origin_type = "s3"
-  signing_behavior                  = "always"
-  signing_protocol                  = "sigv4"
-}
-
-resource "aws_cloudfront_distribution" "s3_distribution" {
-  count                             = var.cloudfront_enabled ? 1 : 0
-  origin {
-    domain_name              = aws_s3_bucket.bucket.bucket_regional_domain_name
-    origin_access_control_id = aws_cloudfront_origin_access_control.s3_origin_access_control[count.index].id
-    origin_id                = "S3-${aws_s3_bucket.bucket.bucket}"
-  }
-
-  enabled             = true
-  default_root_object = "index.html"
-
-  default_cache_behavior {
-    allowed_methods  = ["GET", "HEAD"]
-    cached_methods   = ["GET", "HEAD"]
-    target_origin_id = "S3-${aws_s3_bucket.bucket.bucket}"
-
-    forwarded_values {
-      query_string = false
-      cookies {
-        forward = "none"
-      }
-    }
-    viewer_protocol_policy = "redirect-to-https"
-  }
-
-  viewer_certificate {
-    cloudfront_default_certificate = true
-  }
-
-  restrictions {
-    geo_restriction {
-      restriction_type = "none"
-    }
-  }
-
-  depends_on = [aws_s3_bucket.bucket]
 }

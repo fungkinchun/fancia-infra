@@ -9,34 +9,22 @@ provider "aws" {
   }
 }
 
+provider "aws" {
+  alias  = "us_east_1"
+  region = "us-east-1"
+  default_tags {
+    tags = {
+      Terraform   = "true"
+      Project     = var.project_name
+      Environment = var.environment
+    }
+  }
+}
+
 module "iam" {
   source       = "../modules/iam"
   region       = var.region
   account_name = "${var.project_name}-${var.environment}-user"
-}
-
-module "s3" {
-  source             = "../modules/s3"
-  bucket_name        = "${var.project_name}-${var.environment}-bucket"
-  environment        = var.environment
-  project_name       = var.project_name
-  region             = var.region
-  cloudfront_enabled = true
-}
-
-resource "aws_s3_bucket_cors_configuration" "app_bucket" {
-  bucket = module.s3.bucket_id
-  cors_rule {
-    allowed_headers = ["*"]
-    allowed_methods = ["GET", "PUT", "HEAD"]
-    allowed_origins = [
-      "http://localhost:3000",
-      "https://fancia.co.uk",
-      "https://www.fancia.co.uk",
-    ]
-    expose_headers  = ["ETag"]
-    max_age_seconds = 3000
-  }
 }
 
 module "s3_artifacts" {
@@ -219,8 +207,93 @@ resource "aws_route53_zone" "private" {
 
 resource "aws_route53_zone" "public" {
   name          = var.domain_name
-  comment       = "Public hosted zone for ${var.domain_name} - managed by Terraform"
   force_destroy = true
+}
+
+resource "aws_acm_certificate" "cdn" {
+  provider          = aws.us_east_1
+  domain_name       = "cdn.${var.domain_name}"
+  validation_method = "DNS"
+
+  lifecycle {
+    create_before_destroy = true
+  }
+}
+
+resource "aws_route53_record" "cdn_cert_validation" {
+  for_each = {
+    for o in aws_acm_certificate.cdn.domain_validation_options : o.domain_name => {
+      name   = o.resource_record_name
+      record = o.resource_record_value
+      type   = o.resource_record_type
+    }
+  }
+
+  allow_overwrite = true
+  name            = each.value.name
+  records         = [each.value.record]
+  ttl             = 60
+  type            = each.value.type
+  zone_id         = aws_route53_zone.public.zone_id
+}
+
+resource "aws_acm_certificate_validation" "cdn" {
+  provider                = aws.us_east_1
+  certificate_arn         = aws_acm_certificate.cdn.arn
+  validation_record_fqdns = [for record in aws_route53_record.cdn_cert_validation : record.fqdn]
+
+  timeouts {
+    create = "10m"
+  }
+}
+
+module "s3" {
+  source       = "../modules/s3"
+  bucket_name  = "${var.project_name}-${var.environment}-bucket"
+  environment  = var.environment
+  project_name = var.project_name
+  region       = var.region
+
+  depends_on = [aws_acm_certificate_validation.cdn]
+}
+
+resource "aws_s3_bucket_cors_configuration" "app_bucket" {
+  bucket = module.s3.bucket_id
+  cors_rule {
+    allowed_headers = ["*"]
+    allowed_methods = ["GET", "PUT", "HEAD"]
+    allowed_origins = [
+      "http://localhost:3000",
+      "https://fancia.co.uk",
+      "https://www.fancia.co.uk",
+    ]
+    expose_headers  = ["ETag"]
+    max_age_seconds = 3000
+  }
+}
+
+resource "aws_route53_record" "cdn" {
+  zone_id = aws_route53_zone.public.zone_id
+  name    = "cdn"
+  type    = "A"
+
+  alias {
+    name                   = "cdn.${var.domain_name}"
+    zone_id                = aws_route53_zone.public.zone_id
+    evaluate_target_health = false
+  }
+}
+
+resource "aws_route53_record" "cdn_ipv6" {
+  zone_id = aws_route53_zone.public.zone_id
+  name    = "cdn"
+  type    = "AAAA"
+
+  alias {
+    name                   = "cdn.${var.domain_name}"
+    zone_id                = aws_route53_zone.public.zone_id
+    evaluate_target_health = false
+  }
 }
 
 module "rds" {
@@ -403,6 +476,10 @@ output "private_hosted_zone_id" {
 
 output "public_hosted_zone_id" {
   value = aws_route53_zone.public.zone_id
+}
+
+output "cdn_url" {
+  value = "https://cdn.${var.domain_name}"
 }
 
 output "pod_role_arn" {
