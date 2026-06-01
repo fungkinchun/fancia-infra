@@ -9,6 +9,18 @@ provider "aws" {
   }
 }
 
+provider "aws" {
+  alias  = "us_east_1"
+  region = "us-east-1"
+  default_tags {
+    tags = {
+      Terraform   = "true"
+      Project     = var.project_name
+      Environment = var.environment
+    }
+  }
+}
+
 module "iam" {
   source       = "../modules/iam"
   region       = var.region
@@ -22,6 +34,14 @@ module "s3" {
   project_name       = var.project_name
   region             = var.region
   cloudfront_enabled = true
+  domain_name        = var.domain_name
+  public_zone_id     = aws_route53_zone.public.zone_id
+
+  providers = {
+    aws.us_east_1 = aws.us_east_1
+  }
+
+  depends_on = [aws_route53_zone.public]
 }
 
 resource "aws_s3_bucket_cors_configuration" "app_bucket" {
@@ -45,6 +65,10 @@ module "s3_artifacts" {
   environment  = var.environment
   project_name = var.project_name
   region       = var.region
+
+  providers = {
+    aws.us_east_1 = aws.us_east_1
+  }
 }
 
 resource "aws_iam_role" "codebuild_role" {
@@ -403,6 +427,11 @@ output "private_hosted_zone_id" {
 
 output "public_hosted_zone_id" {
   value = aws_route53_zone.public.zone_id
+}
+
+output "cdn_url" {
+  value       = module.s3.cdn_url
+  description = "Public CDN base URL for uploaded assets (pass to infra-serverless as cdn_url / CDN_URL)"
 }
 
 output "pod_role_arn" {
