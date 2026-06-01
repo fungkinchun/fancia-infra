@@ -253,8 +253,6 @@ module "s3" {
   environment  = var.environment
   project_name = var.project_name
   region       = var.region
-
-  depends_on = [aws_acm_certificate_validation.cdn]
 }
 
 resource "aws_s3_bucket_cors_configuration" "app_bucket" {
@@ -272,14 +270,86 @@ resource "aws_s3_bucket_cors_configuration" "app_bucket" {
   }
 }
 
+resource "aws_cloudfront_origin_access_control" "app" {
+  name                              = "${module.s3.bucket_id}-oac"
+  origin_access_control_origin_type = "s3"
+  signing_behavior                  = "always"
+  signing_protocol                  = "sigv4"
+}
+
+resource "aws_cloudfront_distribution" "app" {
+  origin {
+    domain_name              = module.s3.bucket_regional_domain_name
+    origin_access_control_id = aws_cloudfront_origin_access_control.app.id
+    origin_id                = "S3-${module.s3.bucket_id}"
+  }
+
+  enabled         = true
+  is_ipv6_enabled = true
+  aliases         = ["cdn.${var.domain_name}"]
+
+  default_cache_behavior {
+    allowed_methods  = ["GET", "HEAD", "OPTIONS"]
+    cached_methods   = ["GET", "HEAD"]
+    target_origin_id = "S3-${module.s3.bucket_id}"
+
+    forwarded_values {
+      query_string = false
+      headers      = ["Origin", "Access-Control-Request-Headers", "Access-Control-Request-Method"]
+
+      cookies {
+        forward = "none"
+      }
+    }
+
+    viewer_protocol_policy = "redirect-to-https"
+  }
+
+  viewer_certificate {
+    acm_certificate_arn      = aws_acm_certificate_validation.cdn.certificate_arn
+    ssl_support_method       = "sni_only"
+    minimum_protocol_version = "TLSv1.2"
+  }
+
+  restrictions {
+    geo_restriction {
+      restriction_type = "none"
+    }
+  }
+}
+
+resource "aws_s3_bucket_policy" "app_cloudfront_read" {
+  bucket = module.s3.bucket_id
+
+  policy = jsonencode({
+    Version = "2012-10-17"
+    Statement = [
+      {
+        Sid    = "AllowCloudFrontServicePrincipalReadOnly"
+        Effect = "Allow"
+        Principal = {
+          Service = "cloudfront.amazonaws.com"
+        }
+        Action   = "s3:GetObject"
+        Resource = "${module.s3.bucket_arn}/*"
+        Condition = {
+          StringEquals = {
+            "AWS:SourceArn" = aws_cloudfront_distribution.app.arn
+          }
+        }
+      }
+    ]
+  })
+}
+
 resource "aws_route53_record" "cdn" {
   zone_id = aws_route53_zone.public.zone_id
   name    = "cdn"
   type    = "A"
 
   alias {
-    name                   = "cdn.${var.domain_name}"
-    zone_id                = aws_route53_zone.public.zone_id
+    name                   = aws_cloudfront_distribution.app.domain_name
+    zone_id                = aws_cloudfront_distribution.app.hosted_zone_id
     evaluate_target_health = false
   }
 }
@@ -290,8 +360,8 @@ resource "aws_route53_record" "cdn_ipv6" {
   type    = "AAAA"
 
   alias {
-    name                   = "cdn.${var.domain_name}"
-    zone_id                = aws_route53_zone.public.zone_id
+    name                   = aws_cloudfront_distribution.app.domain_name
+    zone_id                = aws_cloudfront_distribution.app.hosted_zone_id
     evaluate_target_health = false
   }
 }
