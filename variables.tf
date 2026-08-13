@@ -32,9 +32,11 @@ variable "github_token" {
 variable "repositories" {
   description = "List of repositories to create in CodeArtifact"
   type = list(object({
-    name       = string
-    is_service = bool
+    name                     = string
+    is_service               = bool
     override_with_shared_rds = optional(string)
+    is_cron                  = bool
+    schedule                  = optional(string)
   }))
 }
 
