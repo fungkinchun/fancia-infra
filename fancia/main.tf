@@ -26,8 +26,6 @@ locals {
 
   dns_name = local.is_prod ? var.domain_name : "${var.environment}.${var.domain_name}"
 
-  jdbc_database_name = local.is_prod ? var.project_name : "${var.project_name}_${var.environment}"
-
   deploy_branch = local.is_prod ? "main" : var.environment
 
   site_cors_origins = [
@@ -541,8 +539,7 @@ output "rds_secret_name_map" {
   value = {
     for repo in var.repositories :
     repo.name => {
-      databaseName     = try(repo.override_with_shared_rds, null) != null ? repo.override_with_shared_rds : repo.name
-      jdbcDatabaseName = local.jdbc_database_name
+      databaseName = try(repo.override_with_shared_rds, null) != null ? repo.override_with_shared_rds : repo.name
       databaseSecretName = local.is_prod ? (
         try(repo.override_with_shared_rds, null) != null
         ? module.rds[repo.override_with_shared_rds].rds_secret_name
