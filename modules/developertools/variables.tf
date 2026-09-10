@@ -13,6 +13,11 @@ variable "repo_name" {
   description = "Name of the CodeArtifact repository"
 }
 
+variable "branch_name" {
+  type        = string
+  description = "The Git branch to deploy"
+}
+
 variable "codebuild_role_arn" {
   type        = string
   description = "ARN of the CodeBuild role"
@@ -25,12 +30,12 @@ variable "codestar_connection_arn" {
 
 variable "github_username" {
   type        = string
-  description = "GitHub username for authentication"
+  description = "The GitHub username for authentication"
 }
 
 variable "github_token" {
   type        = string
-  description = "GitHub token for authentication"
+  description = "The GitHub token for authentication"
 }
 
 variable "use_eks" {

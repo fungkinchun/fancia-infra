@@ -21,6 +21,23 @@ provider "aws" {
   }
 }
 
+locals {
+  is_prod = var.environment == "prod"
+
+  dns_name = local.is_prod ? var.domain_name : "${var.environment}.${var.domain_name}"
+
+  jdbc_database_name = local.is_prod ? var.project_name : "${var.project_name}_${var.environment}"
+
+  deploy_branch = local.is_prod ? "main" : var.environment
+
+  site_cors_origins = [
+    "http://localhost:3000",
+    "https://${var.domain_name}",
+    "https://www.${var.domain_name}",
+    "https://dev.${var.domain_name}",
+  ]
+}
+
 module "iam" {
   source       = "../modules/iam"
   region       = var.region
@@ -36,7 +53,7 @@ module "s3_artifacts" {
 }
 
 resource "aws_iam_role" "codebuild_role" {
-  name               = "${var.project_name}-codebuild-role"
+  name               = "${var.project_name}-${var.environment}-codebuild-role"
   assume_role_policy = data.aws_iam_policy_document.codebuild_assume_role_policy.json
 }
 
@@ -161,7 +178,7 @@ data "aws_iam_policy_document" "codebuild_policy" {
 }
 
 resource "aws_codestarconnections_connection" "github" {
-  name          = "github-connection"
+  name          = "${var.project_name}-${var.environment}-github"
   provider_type = "GitHub"
 }
 
@@ -170,13 +187,13 @@ resource "aws_codeartifact_domain" "codeartifact_domain" {
 }
 
 module "developertools" {
-  source = "../modules/developertools"
-  for_each = {
-    for repo in var.repositories : repo.name => repo
-  }
+  source   = "../modules/developertools"
+  for_each = { for repo in var.repositories : repo.name => repo }
+
   project_name            = var.project_name
   environment             = var.environment
   repo_name               = each.key
+  branch_name             = local.deploy_branch
   codestar_connection_arn = aws_codestarconnections_connection.github.arn
   codebuild_role_arn      = aws_iam_role.codebuild_role.arn
   github_username         = var.github_username
@@ -186,6 +203,7 @@ module "developertools" {
 }
 
 module "vpc" {
+  count        = local.is_prod ? 1 : 0
   source       = "../modules/vpc"
   project_name = var.project_name
   vpc_cidr     = "10.0.0.0/16"
@@ -194,25 +212,39 @@ module "vpc" {
 }
 
 resource "aws_db_subnet_group" "main" {
+  count      = local.is_prod ? 1 : 0
   name       = "${var.project_name}-subnet-group"
-  subnet_ids = module.vpc.vpc.public_subnets
+  subnet_ids = module.vpc[0].vpc.public_subnets
 }
 
 resource "aws_route53_zone" "private" {
-  name = var.domain_name
+  count = local.is_prod ? 1 : 0
+  name  = var.domain_name
   vpc {
-    vpc_id = module.vpc.vpc.vpc_id
+    vpc_id = module.vpc[0].vpc_id
   }
 }
 
 resource "aws_route53_zone" "public" {
+  count         = local.is_prod ? 1 : 0
   name          = var.domain_name
   force_destroy = true
 }
 
+locals {
+  vpc_id                 = local.is_prod ? module.vpc[0].vpc_id : var.vpc_id
+  private_subnet_ids     = local.is_prod ? module.vpc[0].vpc.private_subnets : var.private_subnet_ids
+  public_subnet_ids      = local.is_prod ? module.vpc[0].vpc.public_subnets : var.public_subnet_ids
+  database_subnet_ids    = local.is_prod ? module.vpc[0].vpc.database_subnets : var.database_subnet_ids
+  vpc_cidr_block         = local.is_prod ? module.vpc[0].vpc.vpc_cidr_block : null
+  db_subnet_group_name   = local.is_prod ? aws_db_subnet_group.main[0].name : var.db_subnet_group_name
+  public_hosted_zone_id  = local.is_prod ? aws_route53_zone.public[0].zone_id : var.public_hosted_zone_id
+  private_hosted_zone_id = local.is_prod ? aws_route53_zone.private[0].zone_id : var.private_hosted_zone_id
+}
+
 resource "aws_acm_certificate" "cdn" {
   provider          = aws.us_east_1
-  domain_name       = "cdn.${var.domain_name}"
+  domain_name       = "cdn.${local.dns_name}"
   validation_method = "DNS"
 
   lifecycle {
@@ -234,7 +266,7 @@ resource "aws_route53_record" "cdn_cert_validation" {
   records         = [each.value.record]
   ttl             = 60
   type            = each.value.type
-  zone_id         = aws_route53_zone.public.zone_id
+  zone_id         = local.public_hosted_zone_id
 }
 
 resource "aws_acm_certificate_validation" "cdn" {
@@ -260,11 +292,7 @@ resource "aws_s3_bucket_cors_configuration" "app_bucket" {
   cors_rule {
     allowed_headers = ["*"]
     allowed_methods = ["GET", "PUT", "HEAD"]
-    allowed_origins = [
-      "http://localhost:3000",
-      "https://fancia.co.uk",
-      "https://www.fancia.co.uk",
-    ]
+    allowed_origins = local.site_cors_origins
     expose_headers  = ["ETag"]
     max_age_seconds = 3000
   }
@@ -286,7 +314,7 @@ resource "aws_cloudfront_distribution" "app" {
 
   enabled         = true
   is_ipv6_enabled = true
-  aliases         = ["cdn.${var.domain_name}"]
+  aliases         = ["cdn.${local.dns_name}"]
 
   default_cache_behavior {
     allowed_methods  = ["GET", "HEAD", "OPTIONS"]
@@ -343,8 +371,8 @@ resource "aws_s3_bucket_policy" "app_cloudfront_read" {
 }
 
 resource "aws_route53_record" "cdn" {
-  zone_id = aws_route53_zone.public.zone_id
-  name    = "cdn"
+  zone_id = local.public_hosted_zone_id
+  name    = "cdn.${local.dns_name}"
   type    = "A"
 
   alias {
@@ -355,8 +383,8 @@ resource "aws_route53_record" "cdn" {
 }
 
 resource "aws_route53_record" "cdn_ipv6" {
-  zone_id = aws_route53_zone.public.zone_id
-  name    = "cdn"
+  zone_id = local.public_hosted_zone_id
+  name    = "cdn.${local.dns_name}"
   type    = "AAAA"
 
   alias {
@@ -370,30 +398,30 @@ module "rds" {
   source = "../modules/rds"
   for_each = {
     for repo in var.repositories : repo.name => repo
-    if repo.is_service && repo.override_with_shared_rds == null
+    if local.is_prod && repo.is_service && try(repo.override_with_shared_rds, null) == null
   }
   project_name         = var.project_name
   repo_name            = each.key
   environment          = var.environment
-  zone_id              = aws_route53_zone.private.zone_id
+  zone_id              = local.private_hosted_zone_id
   rds_id               = "${var.environment}-${each.key}"
   db_name              = var.project_name
   username             = var.username
   instance_class       = var.instance_class
   allocated_storage    = var.allocated_storage
-  vpc_id               = module.vpc.vpc.vpc_id
-  private_subnet_ids   = module.vpc.vpc.database_subnets
-  allowed_cidr_blocks  = [module.vpc.vpc.vpc_cidr_block]
-  db_subnet_group_name = aws_db_subnet_group.main.name
+  vpc_id               = local.vpc_id
+  private_subnet_ids   = local.database_subnet_ids
+  allowed_cidr_blocks  = [local.vpc_cidr_block]
+  db_subnet_group_name = local.db_subnet_group_name
   depends_on           = [aws_db_subnet_group.main]
 }
 
 resource "aws_route53_record" "rds_alias" {
   for_each = {
     for repo in var.repositories : repo.name => repo
-    if repo.is_service && repo.override_with_shared_rds == null
+    if local.is_prod && repo.is_service && try(repo.override_with_shared_rds, null) == null
   }
-  zone_id = aws_route53_zone.public.zone_id
+  zone_id = local.public_hosted_zone_id
   name    = "rds.${each.key}.${var.environment}.${var.domain_name}"
   type    = "CNAME"
   ttl     = 300
@@ -401,16 +429,16 @@ resource "aws_route53_record" "rds_alias" {
 }
 
 module "cluster" {
-  count                    = var.use_eks ? 1 : 0
+  count                    = var.use_eks && local.is_prod ? 1 : 0
   source                   = "../modules/cluster"
   project_name             = var.project_name
   environment              = var.environment
   region                   = var.region
-  vpc_id                   = module.vpc.vpc.vpc_id
-  subnet_ids               = module.vpc.vpc.private_subnets
+  vpc_id                   = local.vpc_id
+  subnet_ids               = local.private_subnet_ids
   principal_arn            = module.iam.account_arn
-  route53_private_zone_arn = aws_route53_zone.private.arn
-  route53_public_zone_arn  = aws_route53_zone.public.arn
+  route53_private_zone_arn = aws_route53_zone.private[0].arn
+  route53_public_zone_arn  = aws_route53_zone.public[0].arn
 }
 
 locals {
@@ -446,7 +474,7 @@ resource "aws_secretsmanager_secret_version" "credentials_version" {
 }
 
 resource "aws_acmpca_certificate_authority" "ca" {
-  count = var.environment == "prod" ? 1 : 0
+  count = local.is_prod ? 1 : 0
   type  = "ROOT"
   certificate_authority_configuration {
     key_algorithm     = "RSA_4096"
@@ -460,7 +488,7 @@ resource "aws_acmpca_certificate_authority" "ca" {
 }
 
 resource "aws_acmpca_certificate" "root" {
-  count                       = var.environment == "prod" ? 1 : 0
+  count                       = local.is_prod ? 1 : 0
   certificate_authority_arn   = aws_acmpca_certificate_authority.ca[count.index].arn
   certificate_signing_request = aws_acmpca_certificate_authority.ca[count.index].certificate_signing_request
   signing_algorithm           = "SHA512WITHRSA"
@@ -474,13 +502,13 @@ resource "aws_acmpca_certificate" "root" {
 }
 
 resource "aws_acmpca_certificate_authority_certificate" "activation" {
-  count                     = var.environment == "prod" ? 1 : 0
+  count                     = local.is_prod ? 1 : 0
   certificate_authority_arn = aws_acmpca_certificate_authority.ca[count.index].arn
   certificate               = aws_acmpca_certificate.root[count.index].certificate
 }
 
 resource "aws_acm_certificate" "cert" {
-  count                     = var.environment == "prod" ? 1 : 0
+  count                     = local.is_prod ? 1 : 0
   domain_name               = var.domain_name
   subject_alternative_names = ["*.${var.domain_name}"]
   certificate_authority_arn = aws_acmpca_certificate_authority.ca[count.index].arn
@@ -491,6 +519,7 @@ resource "aws_acm_certificate" "cert" {
 }
 
 module "rds_scaler" {
+  count          = local.is_prod ? 1 : 0
   source         = "../modules/lambda/rds_scheduler"
   project_name   = var.project_name
   environment    = var.environment
@@ -512,13 +541,15 @@ output "rds_secret_name_map" {
   value = {
     for repo in var.repositories :
     repo.name => {
-      databaseName = repo.override_with_shared_rds != null ? repo.override_with_shared_rds : repo.name
-      databaseSecretName = (repo.override_with_shared_rds != null
+      databaseName     = try(repo.override_with_shared_rds, null) != null ? repo.override_with_shared_rds : repo.name
+      jdbcDatabaseName = local.jdbc_database_name
+      databaseSecretName = local.is_prod ? (
+        try(repo.override_with_shared_rds, null) != null
         ? module.rds[repo.override_with_shared_rds].rds_secret_name
         : module.rds[repo.name].rds_secret_name
-      )
+      ) : var.rds_secret_names[repo.name]
     }
-    if repo.is_service || repo.override_with_shared_rds != null
+    if repo.is_service || try(repo.override_with_shared_rds, null) != null
   }
 }
 
@@ -532,8 +563,12 @@ output "credentials_name_map" {
   }
 }
 
+output "domain_name" {
+  value = local.dns_name
+}
+
 output "vpc_id" {
-  value = module.vpc.vpc_id
+  value = local.vpc_id
 }
 
 output "acm_certificate_arn" {
@@ -541,15 +576,15 @@ output "acm_certificate_arn" {
 }
 
 output "private_hosted_zone_id" {
-  value = aws_route53_zone.private.zone_id
+  value = local.private_hosted_zone_id
 }
 
 output "public_hosted_zone_id" {
-  value = aws_route53_zone.public.zone_id
+  value = local.public_hosted_zone_id
 }
 
 output "cdn_url" {
-  value = "https://cdn.${var.domain_name}"
+  value = "https://cdn.${local.dns_name}"
 }
 
 output "pod_role_arn" {
@@ -557,5 +592,17 @@ output "pod_role_arn" {
 }
 
 output "subnet_ids" {
-  value = module.vpc.vpc.private_subnets
+  value = local.private_subnet_ids
+}
+
+output "public_subnet_ids" {
+  value = local.public_subnet_ids
+}
+
+output "database_subnet_ids" {
+  value = local.database_subnet_ids
+}
+
+output "db_subnet_group_name" {
+  value = local.db_subnet_group_name
 }

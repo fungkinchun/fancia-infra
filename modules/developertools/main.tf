@@ -1,12 +1,13 @@
 data "aws_caller_identity" "current" {}
 
 locals {
-  full_repo_name   = "${var.project_name}-backend-${var.repo_name}"
-  full_domain_name = "${var.project_name}-${var.environment}"
+  github_repo_name    = "${var.project_name}-backend-${var.repo_name}"
+  pipeline_name       = "${var.project_name}-${var.environment}-backend-${var.repo_name}"
+  codeartifact_domain = "${var.project_name}-${var.environment}"
 }
 
 resource "aws_codebuild_project" "codebuild_project" {
-  name         = local.full_repo_name
+  name         = local.pipeline_name
   service_role = var.codebuild_role_arn
 
   artifacts {
@@ -26,7 +27,7 @@ resource "aws_codebuild_project" "codebuild_project" {
 
     environment_variable {
       name  = "DOMAIN_NAME"
-      value = local.full_domain_name
+      value = local.codeartifact_domain
     }
 
     environment_variable {
@@ -56,17 +57,17 @@ resource "aws_codebuild_project" "codebuild_project" {
 }
 
 resource "aws_codeartifact_repository" "codeartifact_repo" {
-  repository = local.full_repo_name
-  domain     = local.full_domain_name
+  repository = local.github_repo_name
+  domain     = local.codeartifact_domain
 }
 
 resource "aws_s3_bucket" "artifacts" {
-  bucket        = "${local.full_repo_name}-artifacts-bucket"
+  bucket        = "${local.pipeline_name}-artifacts-bucket"
   force_destroy = true
 }
 
 resource "aws_codepipeline" "codepipeline" {
-  name          = local.full_repo_name
+  name          = local.pipeline_name
   role_arn      = var.codebuild_role_arn
   pipeline_type = "V2"
 
@@ -88,8 +89,8 @@ resource "aws_codepipeline" "codepipeline" {
 
       configuration = {
         ConnectionArn    = var.codestar_connection_arn
-        FullRepositoryId = "${var.github_username}/${local.full_repo_name}"
-        BranchName       = "main"
+        FullRepositoryId = "${var.github_username}/${local.github_repo_name}"
+        BranchName       = var.branch_name
       }
     }
   }
@@ -114,7 +115,7 @@ resource "aws_codepipeline" "codepipeline" {
 }
 
 resource "aws_ecr_repository" "ecr_repository" {
-  name = local.full_repo_name
+  name = local.pipeline_name
 
   image_scanning_configuration {
     scan_on_push = true

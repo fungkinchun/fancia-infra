@@ -230,7 +230,7 @@ resource "aws_iam_role_policy" "pod_role_policy" {
       {
         Effect = "Allow"
         Action = [
-         "s3:ListBucket"
+          "s3:ListBucket"
         ]
         Resource = [
           "arn:aws:s3:::${var.project_name}-loki-chunk-bucket",
@@ -240,7 +240,7 @@ resource "aws_iam_role_policy" "pod_role_policy" {
       {
         Effect = "Allow"
         Action = [
-         "s3:GetObject",
+          "s3:GetObject",
           "s3:PutObject",
           "s3:DeleteObject"
         ]

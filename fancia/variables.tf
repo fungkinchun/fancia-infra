@@ -84,3 +84,43 @@ variable "use_eks" {
   type        = bool
   description = "If true, deploy the API on EKS; if false, deploy on Lambda (container) behind the same edge"
 }
+
+variable "vpc_id" {
+  type    = string
+  default = null
+}
+
+variable "private_subnet_ids" {
+  type    = list(string)
+  default = null
+}
+
+variable "public_subnet_ids" {
+  type    = list(string)
+  default = null
+}
+
+variable "database_subnet_ids" {
+  type    = list(string)
+  default = null
+}
+
+variable "db_subnet_group_name" {
+  type    = string
+  default = null
+}
+
+variable "public_hosted_zone_id" {
+  type    = string
+  default = null
+}
+
+variable "private_hosted_zone_id" {
+  type    = string
+  default = null
+}
+
+variable "rds_secret_names" {
+  type    = map(string)
+  default = null
+}

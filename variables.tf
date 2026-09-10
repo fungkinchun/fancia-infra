@@ -36,7 +36,7 @@ variable "repositories" {
     is_service               = bool
     override_with_shared_rds = optional(string)
     is_cron                  = bool
-    schedule                  = optional(string)
+    schedule                 = optional(string)
   }))
 }
 
@@ -56,4 +56,4 @@ variable "credentials" {
 variable "use_eks" {
   type        = bool
   description = "If true, deploy the API on EKS; if false, deploy on Lambda (container) behind the same edge"
-} 
+}
