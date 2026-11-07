@@ -11,6 +11,7 @@ module "prod" {
   az_count        = 2
   credentials     = var.credentials
   use_eks         = var.use_eks
+  use_fck_nat     = var.use_fck_nat
 }
 
 module "dev" {

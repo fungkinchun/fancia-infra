@@ -57,3 +57,9 @@ variable "use_eks" {
   type        = bool
   description = "If true, deploy the API on EKS; if false, deploy on Lambda (container) behind the same edge"
 }
+
+variable "use_fck_nat" {
+  type        = bool
+  description = "If true, private subnets reach the internet through a fck-nat instance; if false, through the managed NAT gateway"
+  default     = true
+}

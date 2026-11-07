@@ -24,6 +24,8 @@ provider "aws" {
 locals {
   is_prod = var.environment == "prod"
 
+  create_private_ca = local.is_prod && var.use_eks
+
   dns_name = local.is_prod ? var.domain_name : "${var.environment}.${var.domain_name}"
 
   deploy_branch = local.is_prod ? "main" : var.environment
@@ -207,6 +209,7 @@ module "vpc" {
   vpc_cidr     = "10.0.0.0/16"
   az_count     = 2
   environment  = var.environment
+  use_fck_nat  = var.use_fck_nat
 }
 
 resource "aws_db_subnet_group" "main" {
@@ -472,7 +475,7 @@ resource "aws_secretsmanager_secret_version" "credentials_version" {
 }
 
 resource "aws_acmpca_certificate_authority" "ca" {
-  count = local.is_prod ? 1 : 0
+  count = local.create_private_ca ? 1 : 0
   type  = "ROOT"
   certificate_authority_configuration {
     key_algorithm     = "RSA_4096"
@@ -486,7 +489,7 @@ resource "aws_acmpca_certificate_authority" "ca" {
 }
 
 resource "aws_acmpca_certificate" "root" {
-  count                       = local.is_prod ? 1 : 0
+  count                       = local.create_private_ca ? 1 : 0
   certificate_authority_arn   = aws_acmpca_certificate_authority.ca[count.index].arn
   certificate_signing_request = aws_acmpca_certificate_authority.ca[count.index].certificate_signing_request
   signing_algorithm           = "SHA512WITHRSA"
@@ -500,13 +503,13 @@ resource "aws_acmpca_certificate" "root" {
 }
 
 resource "aws_acmpca_certificate_authority_certificate" "activation" {
-  count                     = local.is_prod ? 1 : 0
+  count                     = local.create_private_ca ? 1 : 0
   certificate_authority_arn = aws_acmpca_certificate_authority.ca[count.index].arn
   certificate               = aws_acmpca_certificate.root[count.index].certificate
 }
 
 resource "aws_acm_certificate" "cert" {
-  count                     = local.is_prod ? 1 : 0
+  count                     = local.create_private_ca ? 1 : 0
   domain_name               = var.domain_name
   subject_alternative_names = ["*.${var.domain_name}"]
   certificate_authority_arn = aws_acmpca_certificate_authority.ca[count.index].arn

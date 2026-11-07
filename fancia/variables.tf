@@ -124,3 +124,9 @@ variable "rds_secret_names" {
   type    = map(string)
   default = null
 }
+
+variable "use_fck_nat" {
+  type        = bool
+  description = "If true, private subnets reach the internet through a fck-nat instance; if false, through the managed NAT gateway"
+  default     = true
+}

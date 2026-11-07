@@ -10,11 +10,11 @@ module "vpc" {
   cidr = var.vpc_cidr
 
   azs              = slice(data.aws_availability_zones.available.names, 0, var.az_count)
-  private_subnets  = [for i in range(var.az_count) : cidrsubnet(var.vpc_cidr, 8, i + 10)] # 10.0.10.0/24, 10.0.11.0/24, ...
-  public_subnets   = [for i in range(var.az_count) : cidrsubnet(var.vpc_cidr, 8, i + 1)]  # 10.0.1.0/24, 10.0.2.0/24, ...
-  database_subnets = [for i in range(var.az_count) : cidrsubnet(var.vpc_cidr, 8, i + 20)] # 10.0.20.0/24, 10.0.21.0/24, ...
+  private_subnets  = [for i in range(var.az_count) : cidrsubnet(var.vpc_cidr, 8, i + 10)]
+  public_subnets   = [for i in range(var.az_count) : cidrsubnet(var.vpc_cidr, 8, i + 1)]
+  database_subnets = [for i in range(var.az_count) : cidrsubnet(var.vpc_cidr, 8, i + 20)]
 
-  enable_nat_gateway     = true
+  enable_nat_gateway     = !var.use_fck_nat
   single_nat_gateway     = true
   one_nat_gateway_per_az = false
 
@@ -36,6 +36,36 @@ module "vpc" {
   database_subnet_tags = {
     Tier = "private-db"
   }
+}
+
+resource "aws_eip" "fck_nat" {
+  count  = var.use_fck_nat ? 1 : 0
+  domain = "vpc"
+
+  tags = {
+    Name = "${var.project_name}-fck-nat"
+  }
+}
+
+module "fck_nat" {
+  count   = var.use_fck_nat ? 1 : 0
+  source  = "RaJiska/fck-nat/aws"
+  version = "1.6.1"
+
+  name          = "${var.project_name}-fck-nat"
+  vpc_id        = module.vpc.vpc_id
+  subnet_id     = module.vpc.public_subnets[0]
+  instance_type = "t4g.nano"
+  ha_mode       = true
+
+  eip_allocation_ids = [aws_eip.fck_nat[0].allocation_id]
+
+  update_route_tables = true
+  route_tables_ids = {
+    for i, id in module.vpc.private_route_table_ids : "private-${i}" => id
+  }
+
+  depends_on = [module.vpc]
 }
 
 output "vpc" {

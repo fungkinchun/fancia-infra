@@ -31,3 +31,9 @@ variable "one_nat_gateway_per_az" {
   type        = bool
   default     = true
 }
+
+variable "use_fck_nat" {
+  description = "Use a fck-nat instance instead of the managed NAT gateway for private subnet egress"
+  type        = bool
+  default     = true
+}
